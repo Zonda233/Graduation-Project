@@ -1,0 +1,111 @@
+{
+  "_comment": "Minimal test scene 2 — very simple, 'textbook' geometry to help distinguish JSON design issues from modeling issues.",
+  "meta": {
+    "_comment": "Same coordinate system和体素设置，用来和原始 minimal_scene.json 对比。",
+    "protocol_version": "1.0.0",
+    "generator": "minimal_scene2_manual_test",
+    "coordinate_system": {
+      "type": "right_handed",
+      "up_axis": "Z",
+      "unit": "meter"
+    },
+    "voxel_grid": {
+      "_comment": "一个小区域，只容纳一个立式罐 + 一段简单管线。",
+      "voxel_size": 0.2,
+      "origin_wc": [0.0, 0.0, 0.0],
+      "dimensions": [10, 10, 10]
+    }
+  },
+
+  "materials": [
+    {
+      "_comment": "碳钢，用在管道和阀门上。",
+      "id": "mat_cs",
+      "display_name": "Carbon Steel",
+      "visual": { "base_color": [0.4, 0.4, 0.45, 1.0], "metallic": 0.9, "roughness": 0.4 }
+    },
+    {
+      "_comment": "不锈钢，用在罐体上。",
+      "id": "mat_ss",
+      "display_name": "Stainless Steel",
+      "visual": { "base_color": [0.7, 0.7, 0.75, 1.0], "metallic": 1.0, "roughness": 0.2 }
+    }
+  ],
+
+  "assets": [
+    {
+      "_comment": "一个非常规整的立式罐：直筒高度明显大于半径，上下都是半球封头。正常视觉效果：看起来像一个细长的立式圆柱罐，上下轮廓连续、底部中心点最低。",
+      "id": "tank_simple",
+      "type": "Tank",
+      "voxel_origin": [2, 2, 0],
+      "voxel_extent": [3, 3, 8],
+      "geometry": {
+        "shell_radius": 0.4,
+        "shell_height": 1.6,
+        "head_type": "hemispherical",
+        "orientation": "vertical"
+      },
+      "material_id": "mat_ss",
+      "ports": [
+        {
+          "_comment": "简单下出口喷嘴：从下半球最低点向 -Z 方向伸出。这里不再手填 wc，而是让代码按立式罐几何自动推导底部最低点，避免 JSON 和模型定义再次偏离。",
+          "port_id": "tank_simple_outlet_bottom",
+          "role": "outlet",
+          "direction": "-Z",
+          "nozzle_length_m": 0.15,
+          "nominal_diameter": 0.1
+        }
+      ]
+    }
+  ],
+
+  "_comment_segments": "只定义一条非常简单的管线：从罐底喷嘴垂直向下，然后一个 90 度长半径弯头拐到 +X 方向，最后是一段直管。",
+  "tee_joints": [],
+
+  "segments": [
+    {
+      "_comment": "Segment 01：从立式罐底喷嘴开始的一条简单管线。正常视觉效果：一条直立的短立管，从罐底伸出一点点，然后顺滑的 90 度弯头折向 +X 水平，再一小段水平直管；所有圆弧看起来应该是光滑的圆柱和圆弧，不应该有奇怪的扭曲或双曲面感。",
+      "id": "seg_simple_01",
+      "display_name": "Tank bottom to simple horizontal line",
+      "spec": {
+        "_comment": "公称直径 0.1 m，大致接近 DN100；with_flanges 设为 false，避免额外几何干扰观察。",
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": false
+      },
+      "from_port": "tank_simple_outlet_bottom",
+      "to_port": null,
+      "components": [
+        {
+          "_comment": "C01：从喷嘴末端（tip）开始的直管。这里喷嘴根点在 (0.7,0.7,-0.4)，喷嘴长度 0.15 m，所以末端是 (0.7,0.7,-0.55)。正常视觉效果：先垂直向下留出明显净空，再去做 90 度转弯。",
+          "comp_id": "s01_c01",
+          "type": "Pipe",
+          "wc_start": [0.7, 0.7, -0.55],
+          "wc_end": [0.7, 0.7, -0.85],
+          "axis": "-Z",
+          "length_m": 0.3
+        },
+        {
+          "_comment": "C02：一个标准 90 度长半径弯头，从竖直 -Z 转向水平方向 +X。当前库里的 wc_center 实际上表示 bend corner（折线拐点），不是圆弧圆心；配套的直管应接在弯头的切点上。正常视觉效果：弯头与上下游直管刚好相切，没有穿插或悬空。",
+          "comp_id": "s01_c02",
+          "type": "Elbow",
+          "wc_center": [0.7, 0.7, -1.03],
+          "axis_in": "-Z",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.18
+        },
+        {
+          "_comment": "C03：弯头后的水平直管，从弯头出口切点开始。正常视觉效果：从弯头末端平顺接出，没有在弯头内部起管。",
+          "comp_id": "s01_c03",
+          "type": "Pipe",
+          "wc_start": [0.88, 0.7, -1.03],
+          "wc_end": [1.48, 0.7, -1.03],
+          "axis": "+X",
+          "length_m": 0.6
+        }
+      ]
+    }
+  ]
+}
+

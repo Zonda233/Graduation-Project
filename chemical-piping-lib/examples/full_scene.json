@@ -1,0 +1,208 @@
+{
+  "_comment": "完整示例场景 — 覆盖所有元件类型，用于检验建模正确性。包含：Tank、Tee、Pipe（含法兰）、Elbow、Gate阀、Ball阀、Tank出口法兰。",
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "full_scene_validation",
+    "coordinate_system": { "type": "right_handed", "up_axis": "Z", "unit": "meter" },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc": [0.0, 0.0, 0.0],
+      "dimensions": [20, 20, 20]
+    }
+  },
+
+  "materials": [
+    {
+      "id": "mat_cs",
+      "display_name": "碳钢",
+      "visual": { "base_color": [0.4, 0.4, 0.45, 1.0], "metallic": 0.9, "roughness": 0.4 }
+    },
+    {
+      "id": "mat_ss",
+      "display_name": "不锈钢",
+      "visual": { "base_color": [0.7, 0.7, 0.75, 1.0], "metallic": 1.0, "roughness": 0.2 }
+    }
+  ],
+
+  "assets": [
+    {
+      "_comment": "立式储罐：半球封头，底部中心出口。wc_center 为几何中心，罐底=wc_center.z-(shell_height/2+head_height)=1.4-1.0=0.4，喷嘴根 0.4、末端 0.3，与 seg_01 对齐，避免插入弯头",
+      "id": "vessel_01",
+      "type": "Tank",
+      "wc_center": [0.8, 0.8, 1.4],
+      "geometry": {
+        "shell_radius": 0.4,
+        "shell_height": 1.2,
+        "head_type": "hemispherical",
+        "orientation": "vertical"
+      },
+      "material_id": "mat_ss",
+      "ports": [
+        {
+          "port_id": "vessel_01_outlet",
+          "role": "outlet",
+          "direction": "-Z",
+          "nozzle_length_m": 0.1,
+          "nominal_diameter": 0.1,
+          "flange_spec": {}
+        }
+      ]
+    }
+  ],
+
+  "tee_joints": [
+    {
+      "_comment": "三通：主管 -X/+X，支管 +Y。水平主管 z=-0.1 与 seg_01/02 对齐",
+      "tee_id": "tee_01",
+      "id": "tee_01",
+      "wc_center": [1.4, 0.8, -0.1],
+      "ports": [
+        { "port_id": "tee_01_run_a",  "axis": "-X", "connects_to_comp": "s01_c03" },
+        { "port_id": "tee_01_run_b",  "axis": "+X", "connects_to_comp": "s02_c01" },
+        { "port_id": "tee_01_branch", "axis": "+Y", "connects_to_comp": "s03_c01" }
+      ],
+      "spec": {
+        "main_diameter": 0.1,
+        "branch_diameter": 0.1,
+        "material_id": "mat_cs"
+      }
+    }
+  ],
+
+  "segments": [
+    {
+      "_comment": "段1：储罐出口(喷嘴末端 z=0.3) → 立管 → 弯头 → 水平管 → 三通 run_a。罐底在 z=0.4，喷嘴长 0.1 故 tip=0.3",
+      "id": "seg_01",
+      "display_name": "储罐到三通",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": true
+      },
+      "from_port": "vessel_01_outlet",
+      "to_port": null,
+      "components": [
+        {
+          "comp_id": "s01_c01",
+          "type": "Pipe",
+          "wc_start": [0.8, 0.8, 0.3],
+          "wc_end": [0.8, 0.8, 0.05],
+          "axis": "-Z",
+          "length_m": 0.25
+        },
+        {
+          "comp_id": "s01_c02",
+          "type": "Elbow",
+          "wc_center": [0.8, 0.8, -0.1],
+          "axis_in": "-Z",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.15
+        },
+        {
+          "comp_id": "s01_c03",
+          "type": "Pipe",
+          "wc_start": [0.95, 0.8, -0.1],
+          "wc_end": [1.2286, 0.8, -0.1],
+          "axis": "+X",
+          "length_m": 0.2786
+        }
+      ]
+    },
+    {
+      "_comment": "段2：三通 run_b → 直管 → Gate阀 → 直管 → Ball阀 → 直管(带法兰)",
+      "id": "seg_02",
+      "display_name": "三通到水平管线",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": true
+      },
+      "from_port": null,
+      "to_port": null,
+      "components": [
+        {
+          "comp_id": "s02_c01",
+          "type": "Pipe",
+          "wc_start": [1.5714, 0.8, -0.1],
+          "wc_end": [1.9, 0.8, -0.1],
+          "axis": "+X",
+          "length_m": 0.3286
+        },
+        {
+          "comp_id": "s02_c02",
+          "type": "Valve",
+          "subtype": "Gate",
+          "wc_start": [1.9, 0.8, -0.1],
+          "wc_end": [2.2, 0.8, -0.1],
+          "axis": "+X",
+          "nominal_diameter": 0.1
+        },
+        {
+          "comp_id": "s02_c03",
+          "type": "Pipe",
+          "wc_start": [2.2, 0.8, -0.1],
+          "wc_end": [2.5, 0.8, -0.1],
+          "axis": "+X",
+          "length_m": 0.3
+        },
+        {
+          "comp_id": "s02_c04",
+          "type": "Valve",
+          "subtype": "Ball",
+          "wc_start": [2.5, 0.8, -0.1],
+          "wc_end": [2.8, 0.8, -0.1],
+          "axis": "+X",
+          "nominal_diameter": 0.1
+        },
+        {
+          "comp_id": "s02_c05",
+          "type": "Pipe",
+          "wc_start": [2.8, 0.8, -0.1],
+          "wc_end": [3.2, 0.8, -0.1],
+          "axis": "+X",
+          "length_m": 0.4
+        }
+      ]
+    },
+    {
+      "_comment": "段3：三通 branch → 直管 → 弯头 → 立管(带法兰)",
+      "id": "seg_03",
+      "display_name": "三通支管",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": true
+      },
+      "from_port": null,
+      "to_port": null,
+      "components": [
+        {
+          "comp_id": "s03_c01",
+          "type": "Pipe",
+          "wc_start": [1.4, 0.9429, -0.1],
+          "wc_end": [1.4, 1.05, -0.1],
+          "axis": "+Y",
+          "length_m": 0.1071
+        },
+        {
+          "comp_id": "s03_c02",
+          "type": "Elbow",
+          "wc_center": [1.4, 1.2, -0.1],
+          "axis_in": "+Y",
+          "axis_out": "-Z",
+          "angle_deg": 90,
+          "bend_radius_m": 0.15
+        },
+        {
+          "comp_id": "s03_c03",
+          "type": "Pipe",
+          "wc_start": [1.4, 1.2, -0.25],
+          "wc_end": [1.4, 1.2, -0.55],
+          "axis": "-Z",
+          "length_m": 0.3
+        }
+      ]
+    }
+  ]
+}

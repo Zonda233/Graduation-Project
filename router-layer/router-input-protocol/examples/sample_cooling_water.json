@@ -1,0 +1,137 @@
+{
+  "_comment": "示例：储罐出口 → 三通分支点 → 两路（一路至末端管帽，一路至另一端点）。本例故意省略 location_2d，验证 NodePlacer 的拓扑自动布局。含 tag、fluid_class、via_nodes，供 Router 生成 tee_joints 与多 segment。",
+  "meta": {
+    "schema_name": "router_input_v1",
+    "protocol_version": "0.1.0",
+    "created_at": "2026-03-11T12:00:00Z",
+    "generator": "demo_manual",
+    "units": {
+      "length": "m",
+      "pressure": "kPa",
+      "temperature": "degC"
+    }
+  },
+  "plant": {
+    "plant_id": "PLANT_A",
+    "unit_id": "UNIT_01",
+    "system_id": "SYS-CW"
+  },
+  "nodes": [
+    {
+      "id": "tank_01_outlet",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "T-01 出口",
+      "pid_tag": "T-01",
+      "equipment_ref": "tank_01",
+      "placement_hint": {
+        "z_layers": [1],
+        "anchor_policy": "near_seed",
+        "direction_preferred": "-Z"
+      },
+      "bbox_hint": {
+        "extent_voxels": [1, 1, 1],
+        "clearance_voxels": 1
+      }
+    },
+    {
+      "id": "tee_junction_01",
+      "type": "Junction",
+      "role": "branch_point",
+      "label": "三通分支点",
+      "placement_hint": {
+        "z_layers": [0],
+        "anchor_policy": "near_seed"
+      },
+      "bbox_hint": {
+        "extent_voxels": [1, 1, 1],
+        "clearance_voxels": 0
+      }
+    },
+    {
+      "id": "end_cap_run",
+      "type": "Junction",
+      "role": "line_end",
+      "label": "主管末端（管帽）",
+      "placement_hint": {
+        "z_layers": [0],
+        "anchor_policy": "near_seed"
+      },
+      "bbox_hint": {
+        "extent_voxels": [1, 1, 1],
+        "clearance_voxels": 0
+      }
+    },
+    {
+      "id": "end_cap_branch",
+      "type": "Junction",
+      "role": "line_end",
+      "label": "支管末端（管帽）",
+      "placement_hint": {
+        "z_layers": [0],
+        "anchor_policy": "near_seed"
+      },
+      "bbox_hint": {
+        "extent_voxels": [1, 1, 1],
+        "clearance_voxels": 0
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "L_run",
+      "tag": "CW-01-100-CS",
+      "from_node": "tank_01_outlet",
+      "to_node": "end_cap_run",
+      "via_nodes": ["tee_junction_01"],
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "design_pressure_kpa": 800,
+      "design_temperature_degC": 80,
+      "nominal_diameter_mm": 100,
+      "spec": "CS150-SCH40",
+      "fluid_class": "D",
+      "layout_type": "above_ground",
+      "phase": "liquid",
+      "allow_backflow": false,
+      "valve_subtype": "Gate",
+      "with_flanges": true
+    },
+    {
+      "id": "L_branch",
+      "tag": "CW-02-50-CS",
+      "from_node": "tee_junction_01",
+      "to_node": "end_cap_branch",
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 50,
+      "spec": "CS150-SCH40",
+      "fluid_class": "D",
+      "layout_type": "above_ground",
+      "phase": "liquid",
+      "with_flanges": true
+    }
+  ],
+  "constraints": {
+    "spatial_rules": {
+      "default_clearance_voxels": 0,
+      "max_search_radius_voxels": 5,
+      "default_z_layers": [0]
+    },
+    "routing_rules": {
+      "min_spacing_between_parallel_lines_m": 0.05,
+      "min_clearance_to_floor_m": 0.2,
+      "max_elbows_per_line": 8
+    }
+  },
+  "source_trace": {
+    "pid_document_id": "PID-DEMO-001",
+    "pages": [
+      {
+        "page_id": "P1",
+        "image_ref": "pid_demo_p1.png",
+        "resolution": { "width_px": 1920, "height_px": 1080 }
+      }
+    ]
+  }
+}

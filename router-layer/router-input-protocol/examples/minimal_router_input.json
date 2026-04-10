@@ -1,0 +1,75 @@
+{
+  "_comment": "最小示例：单储罐 + 单条管线至末端封闭（对应生成层 Cap），供 Router 读入与单元测试。",
+  "meta": {
+    "schema_name": "router_input_v1",
+    "protocol_version": "0.1.0",
+    "created_at": "2026-03-11T12:00:00Z",
+    "generator": "demo_manual",
+    "units": {
+      "length": "m",
+      "pressure": "kPa",
+      "temperature": "degC"
+    }
+  },
+  "plant": {},
+  "nodes": [
+    {
+      "id": "tank_01_outlet",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "Tank-01 出口",
+      "pid_tag": "T-01",
+      "equipment_ref": "tank_01",
+      "placement_hint": {
+        "z_layers": [1],
+        "anchor_policy": "near_seed",
+        "direction_preferred": "-Z"
+      },
+      "bbox_hint": {
+        "extent_voxels": [1, 1, 1],
+        "clearance_voxels": 1
+      }
+    },
+    {
+      "id": "end_cap_01",
+      "type": "Junction",
+      "role": "line_end",
+      "label": "管线末端（管帽）",
+      "placement_hint": {
+        "z_layers": [0],
+        "anchor_policy": "near_seed"
+      },
+      "bbox_hint": {
+        "extent_voxels": [1, 1, 1],
+        "clearance_voxels": 0
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "L_01",
+      "tag": "CW-01-DN100-CS",
+      "from_node": "tank_01_outlet",
+      "to_node": "end_cap_01",
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 100,
+      "spec": "CS150-SCH40",
+      "fluid_class": "D",
+      "layout_type": "above_ground",
+      "phase": "liquid",
+      "with_flanges": true
+    }
+  ],
+  "constraints": {
+    "spatial_rules": {
+      "default_clearance_voxels": 0,
+      "max_search_radius_voxels": 4,
+      "default_z_layers": [0]
+    },
+    "routing_rules": {
+      "min_spacing_between_parallel_lines_m": 0.05,
+      "min_clearance_to_floor_m": 0.2
+    }
+  }
+}

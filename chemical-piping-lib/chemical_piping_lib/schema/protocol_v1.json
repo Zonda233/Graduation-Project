@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemical-piping-lib/schema/protocol_v1.json",
+  "title": "Chemical Piping Lib Input Protocol",
+  "description": "JSON protocol v1.x for generation layer. See doc/Final_JSON.md.",
+  "type": "object",
+  "required": ["meta", "materials", "assets", "tee_joints", "segments"],
+  "additionalProperties": true,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["protocol_version", "coordinate_system", "voxel_grid"],
+      "additionalProperties": true,
+      "properties": {
+        "protocol_version": { "type": "string", "pattern": "^1\\.\\d+\\.\\d+$" },
+        "generator": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "coordinate_system": {
+          "type": "object",
+          "required": ["type", "up_axis", "unit"],
+          "properties": {
+            "type": { "const": "right_handed" },
+            "up_axis": { "const": "Z" },
+            "unit": { "const": "meter" }
+          }
+        },
+        "voxel_grid": {
+          "type": "object",
+          "required": ["voxel_size", "origin_wc", "dimensions"],
+          "properties": {
+            "voxel_size": { "type": "number", "minimum": 1e-6 },
+            "origin_wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+            "dimensions": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 3, "maxItems": 3 }
+          }
+        },
+        "scene_bounds": {
+          "type": "object",
+          "properties": {
+            "min_wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+            "max_wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 }
+          }
+        }
+      }
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "visual"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "display_name": { "type": "string" },
+          "visual": {
+            "type": "object",
+            "required": ["base_color", "metallic", "roughness"],
+            "properties": {
+              "base_color": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
+              "metallic": { "type": "number", "minimum": 0, "maximum": 1 },
+              "roughness": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "material_id", "geometry", "ports"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["Tank"] },
+          "display_name": { "type": "string" },
+          "voxel_origin": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+          "voxel_extent": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 3, "maxItems": 3 },
+          "wc_center": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "material_id": { "type": "string" },
+          "geometry": {
+            "type": "object",
+            "required": ["shell_radius", "shell_height", "head_type", "orientation"],
+            "properties": {
+              "shell_radius": { "type": "number", "minimum": 1e-6 },
+              "shell_height": { "type": "number", "minimum": 0 },
+              "head_type": { "enum": ["ellipsoidal", "hemispherical", "flat"] },
+              "head_ratio": { "type": "number", "minimum": 0 },
+              "orientation": { "enum": ["vertical", "horizontal"] }
+            }
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["port_id", "direction", "nominal_diameter"],
+              "additionalProperties": true,
+              "properties": {
+                "port_id": { "type": "string", "minLength": 1 },
+                "role": { "enum": ["inlet", "outlet", "vent", "drain"] },
+                "vc": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+                "wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+                "direction": { "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] },
+                "nominal_diameter": { "type": "number", "minimum": 1e-6 },
+                "nozzle_length_m": { "type": "number", "minimum": 0 },
+                "flange_spec": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tee_joints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tee_id", "wc_center", "ports", "spec"],
+        "additionalProperties": true,
+        "properties": {
+          "tee_id": { "type": "string" },
+          "vc_center": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+          "wc_center": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+          "ports": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": ["port_id", "axis", "connects_to_comp"],
+              "properties": {
+                "port_id": { "type": "string" },
+                "axis": { "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] },
+                "connects_to_comp": { "type": "string" }
+              }
+            }
+          },
+          "spec": {
+            "type": "object",
+            "required": ["main_diameter", "branch_diameter", "material_id"],
+            "properties": {
+              "main_diameter": { "type": "number", "minimum": 1e-6 },
+              "branch_diameter": { "type": "number", "minimum": 1e-6 },
+              "material_id": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "spec", "components"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "display_name": { "type": "string" },
+          "from_port": { "type": ["string", "null"] },
+          "to_port": { "type": ["string", "null"] },
+          "spec": {
+            "type": "object",
+            "required": ["nominal_diameter", "material_id"],
+            "additionalProperties": true,
+            "properties": {
+              "nominal_diameter": { "type": "number", "minimum": 1e-6 },
+              "pipe_schedule": { "type": "string" },
+              "material_id": { "type": "string" },
+              "with_flanges": { "type": "boolean" },
+              "flange_face_type": { "type": "string" }
+            }
+          },
+          "components": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/component" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "vec3_int": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
+    "vec3_float": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+    "axis": { "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] },
+    "component": {
+      "type": "object",
+      "required": ["comp_id", "type"],
+      "additionalProperties": true,
+      "properties": {
+        "comp_id": { "type": "string" },
+        "id": { "type": "string" },
+        "type": { "enum": ["Pipe", "Elbow", "Valve", "Tee", "Flange", "Reducer", "Cap"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "Pipe" } }, "required": ["type"] },
+          "then": {
+            "required": ["wc_start", "wc_end", "axis", "length_m"],
+            "properties": {
+              "vc_start": { "$ref": "#/$defs/vec3_int" },
+              "vc_end": { "$ref": "#/$defs/vec3_int" },
+              "wc_start": { "$ref": "#/$defs/vec3_float" },
+              "wc_end": { "$ref": "#/$defs/vec3_float" },
+              "axis": { "$ref": "#/$defs/axis" },
+              "length_m": { "type": "number", "minimum": 1e-6 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Elbow" } }, "required": ["type"] },
+          "then": {
+            "required": ["wc_center", "axis_in", "axis_out", "angle_deg"],
+            "properties": {
+              "vc_center": { "$ref": "#/$defs/vec3_int" },
+              "wc_center": { "$ref": "#/$defs/vec3_float" },
+              "axis_in": { "$ref": "#/$defs/axis" },
+              "axis_out": { "$ref": "#/$defs/axis" },
+              "angle_deg": { "enum": [45, 90] },
+              "bend_radius_m": { "type": "number", "minimum": 1e-6 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Valve" } }, "required": ["type"] },
+          "then": {
+            "required": ["subtype", "wc_start", "wc_end", "axis"],
+            "properties": {
+              "subtype": { "enum": ["Gate", "Ball"] },
+              "vc_start": { "$ref": "#/$defs/vec3_int" },
+              "vc_end": { "$ref": "#/$defs/vec3_int" },
+              "wc_start": { "$ref": "#/$defs/vec3_float" },
+              "wc_end": { "$ref": "#/$defs/vec3_float" },
+              "axis": { "$ref": "#/$defs/axis" },
+              "nominal_diameter": { "type": "number", "minimum": 1e-6 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Cap" } }, "required": ["type"] },
+          "then": {
+            "required": ["wc", "axis"],
+            "properties": {
+              "vc": { "$ref": "#/$defs/vec3_int" },
+              "wc": { "$ref": "#/$defs/vec3_float" },
+              "axis": { "$ref": "#/$defs/axis" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "Reducer" } }, "required": ["type"] },
+          "then": {
+            "required": ["wc_start", "wc_end", "axis", "diameter_in_m", "diameter_out_m"],
+            "properties": {
+              "vc_start": { "$ref": "#/$defs/vec3_int" },
+              "vc_end": { "$ref": "#/$defs/vec3_int" },
+              "wc_start": { "$ref": "#/$defs/vec3_float" },
+              "wc_end": { "$ref": "#/$defs/vec3_float" },
+              "axis": { "$ref": "#/$defs/axis" },
+              "diameter_in_m": { "type": "number", "minimum": 1e-6 },
+              "diameter_out_m": { "type": "number", "minimum": 1e-6 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

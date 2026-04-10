@@ -1,0 +1,117 @@
+{
+  "_comment": "复杂冷却水网络：1个罐出口、2个三通、3条管线（主管穿过两级三通+两级分支），用于验证弯头/三通处几何裁剪与多段连接。",
+  "meta": {
+    "schema_name": "router_input_v1",
+    "protocol_version": "0.1.0",
+    "created_at": "2026-03-12T18:00:00Z",
+    "generator": "demo_manual_complex",
+    "units": {
+      "length": "m",
+      "pressure": "kPa",
+      "temperature": "degC"
+    }
+  },
+  "plant": {
+    "plant_id": "PLANT_A",
+    "unit_id": "UNIT_01",
+    "system_id": "SYS-CW-COMPLEX"
+  },
+  "nodes": [
+    {
+      "id": "tank_01_outlet",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "T-01 出口",
+      "pid_tag": "T-01",
+      "equipment_ref": "tank_01",
+      "location_2d": { "x": 0.12, "y": 0.52, "space": "diagram_2d" }
+    },
+    {
+      "id": "tee_junction_01",
+      "type": "Junction",
+      "role": "branch_point",
+      "label": "一级三通",
+      "ocation_2d": { "x": 0.42, "y": 0.52, "space": "diagram_2d" }
+    },
+    {
+      "id": "tee_junction_02",
+      "type": "Junction",
+      "role": "branch_point",
+      "label": "二级三通",
+      "location_2d": { "x": 0.68, "y": 0.52, "space": "diagram_2d" }
+    },
+    {
+      "id": "end_cap_run",
+      "type": "Junction",
+      "role": "line_end",
+      "label": "主管末端（管帽）",
+      "location_2d": { "x": 0.90, "y": 0.52, "space": "diagram_2d" }
+    },
+    {
+      "id": "end_cap_branch_1",
+      "type": "Junction",
+      "role": "line_end",
+      "label": "一级支管末端",
+      "location_2d": { "x": 0.42, "y": 0.82, "space": "diagram_2d" }
+    },
+    {
+      "id": "end_cap_branch_2",
+      "type": "Junction",
+      "role": "line_end",
+      "label": "二级支管A末端",
+      "location_2d": { "x": 0.68, "y": 0.80, "space": "diagram_2d" }
+    }
+  ],
+  "lines": [
+    {
+      "id": "L_main_a",
+      "tag": "CW-MAIN-A-100-CS",
+      "from_node": "tank_01_outlet",
+      "to_node": "end_cap_run",
+      "via_nodes": ["tee_junction_01", "tee_junction_02"],
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 100,
+      "spec": "CS150-SCH40",
+      "fluid_class": "D",
+      "layout_type": "above_ground",
+      "phase": "liquid",
+      "with_flanges": true
+    },
+    {
+      "id": "L_branch_1",
+      "tag": "CW-BR-01-80-CS",
+      "from_node": "tee_junction_01",
+      "to_node": "end_cap_branch_1",
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 80,
+      "spec": "CS150-SCH40",
+      "fluid_class": "D",
+      "layout_type": "above_ground",
+      "phase": "liquid",
+      "with_flanges": true
+    },
+    {
+      "id": "L_branch_2",
+      "tag": "CW-BR-02-65-CS",
+      "from_node": "tee_junction_02",
+      "to_node": "end_cap_branch_2",
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 65,
+      "spec": "CS150-SCH40",
+      "fluid_class": "D",
+      "layout_type": "above_ground",
+      "phase": "liquid",
+      "with_flanges": true
+    }
+  ],
+  "constraints": {
+    "routing_rules": {
+      "min_spacing_between_parallel_lines_m": 0.05,
+      "min_clearance_to_floor_m": 0.2,
+      "max_elbows_per_line": 12
+    }
+  }
+}

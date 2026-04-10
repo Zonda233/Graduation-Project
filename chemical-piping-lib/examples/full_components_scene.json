@@ -1,0 +1,192 @@
+{
+  "_comment": "全元件测试场景：Tank, Pipe, Elbow, Tee, Valve (Gate), Reducer, Cap；Flange 由 with_flanges 隐式生成。用于验证所有 asset 类型。",
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "full_components_scene",
+    "coordinate_system": { "type": "right_handed", "up_axis": "Z", "unit": "meter" },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc": [0.0, 0.0, 0.0],
+      "dimensions": [20, 20, 20]
+    }
+  },
+
+  "materials": [
+    {
+      "id": "mat_cs",
+      "display_name": "碳钢",
+      "visual": { "base_color": [0.4, 0.4, 0.45, 1.0], "metallic": 0.9, "roughness": 0.4 }
+    },
+    {
+      "id": "mat_ss",
+      "display_name": "不锈钢",
+      "visual": { "base_color": [0.7, 0.7, 0.75, 1.0], "metallic": 1.0, "roughness": 0.2 }
+    }
+  ],
+
+  "assets": [
+    {
+      "id": "tank_01",
+      "type": "Tank",
+      "display_name": "原料储罐",
+      "wc_center": [0.8, 0.8, 1.4],
+      "geometry": {
+        "shell_radius": 0.4,
+        "shell_height": 1.2,
+        "head_type": "hemispherical",
+        "orientation": "vertical"
+      },
+      "material_id": "mat_ss",
+      "ports": [
+        {
+          "port_id": "tank_01_outlet",
+          "role": "outlet",
+          "direction": "-Z",
+          "nozzle_length_m": 0.1,
+          "nominal_diameter": 0.1
+        }
+      ]
+    }
+  ],
+
+  "tee_joints": [
+    {
+      "tee_id": "tee_01",
+      "id": "tee_01",
+      "wc_center": [1.4, 0.8, -0.1],
+      "ports": [
+        { "port_id": "tee_01_run_a",  "axis": "-X", "connects_to_comp": "s01_c03" },
+        { "port_id": "tee_01_run_b",  "axis": "+X", "connects_to_comp": "s02_c01" },
+        { "port_id": "tee_01_branch", "axis": "+Y", "connects_to_comp": "s03_c01" }
+      ],
+      "spec": {
+        "main_diameter": 0.1,
+        "branch_diameter": 0.1,
+        "material_id": "mat_cs"
+      }
+    }
+  ],
+
+  "segments": [
+    {
+      "id": "seg_01",
+      "display_name": "储罐到三通",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": true
+      },
+      "from_port": "tank_01_outlet",
+      "to_port": null,
+      "components": [
+        {
+          "comp_id": "s01_c01",
+          "type": "Pipe",
+          "wc_start": [0.8, 0.8, 0.3],
+          "wc_end": [0.8, 0.8, 0.05],
+          "axis": "-Z",
+          "length_m": 0.25
+        },
+        {
+          "comp_id": "s01_c02",
+          "type": "Elbow",
+          "wc_center": [0.8, 0.8, -0.1],
+          "axis_in": "-Z",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.15
+        },
+        {
+          "comp_id": "s01_c03",
+          "type": "Pipe",
+          "wc_start": [0.95, 0.8, -0.1],
+          "wc_end": [1.23, 0.8, -0.1],
+          "axis": "+X",
+          "length_m": 0.28
+        }
+      ]
+    },
+    {
+      "id": "seg_02",
+      "display_name": "三通 run_b 直管",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": false
+      },
+      "from_port": "tee_01_run_b",
+      "to_port": null,
+      "components": [
+        {
+          "comp_id": "s02_c01",
+          "type": "Pipe",
+          "wc_start": [1.57, 0.8, -0.1],
+          "wc_end": [1.9, 0.8, -0.1],
+          "axis": "+X",
+          "length_m": 0.33
+        }
+      ]
+    },
+    {
+      "id": "seg_03",
+      "display_name": "三通支管 → 阀 → 变径 → 管帽",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_cs",
+        "with_flanges": true
+      },
+      "from_port": "tee_01_branch",
+      "to_port": null,
+      "components": [
+        {
+          "comp_id": "s03_c01",
+          "type": "Pipe",
+          "wc_start": [1.4, 0.94, -0.1],
+          "wc_end": [1.4, 1.1, -0.1],
+          "axis": "+Y",
+          "length_m": 0.16
+        },
+        {
+          "comp_id": "s03_c02",
+          "type": "Valve",
+          "subtype": "Gate",
+          "wc_start": [1.4, 1.1, -0.1],
+          "wc_end": [1.4, 1.3, -0.1],
+          "axis": "+Y",
+          "nominal_diameter": 0.1
+        },
+        {
+          "comp_id": "s03_c03",
+          "type": "Pipe",
+          "wc_start": [1.4, 1.3, -0.1],
+          "wc_end": [1.4, 1.5, -0.1],
+          "axis": "+Y",
+          "length_m": 0.2
+        },
+        {
+          "comp_id": "s03_c04",
+          "type": "Reducer",
+          "wc_start": [1.4, 1.5, -0.1],
+          "wc_end": [1.4, 1.7, -0.1],
+          "axis": "+Y",
+          "diameter_in_m": 0.1,
+          "diameter_out_m": 0.05
+        },
+        {
+          "comp_id": "s03_c05",
+          "type": "Pipe",
+          "wc_start": [1.4, 1.7, -0.1],
+          "wc_end": [1.4, 1.85, -0.1],
+          "axis": "+Y",
+          "length_m": 0.15
+        },
+        {
+          "comp_id": "s03_c06",
+          "type": "Cap",
+          "wc": [1.4, 1.85, -0.1],
+          "axis": "+Y"
+        }
+      ]
+    }
+  ]
+}

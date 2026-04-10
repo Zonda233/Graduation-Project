@@ -1,0 +1,5 @@
+# Dev dependencies for chemical-piping-lib (testing only).
+# Not required when running the library inside Blender.
+
+pytest>=7.0.0
+jsonschema>=4.0.0

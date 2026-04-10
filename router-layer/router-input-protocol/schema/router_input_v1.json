@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://graduation-project/router-input-protocol/schema/router_input_v1.json",
+  "title": "Router Input Protocol (Graph-Level)",
+  "description": "JSON protocol for input to the 3D routing layer. Upstream: perception/validation; downstream: generation-layer JSON for chemical-piping-lib.",
+  "type": "object",
+  "required": ["meta", "nodes", "lines"],
+  "additionalProperties": true,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["protocol_version"],
+      "additionalProperties": true,
+      "properties": {
+        "schema_name": { "type": "string", "const": "router_input_v1" },
+        "protocol_version": { "type": "string", "pattern": "^0\\.\\d+\\.\\d+$" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "generator": { "type": "string" },
+        "units": {
+          "type": "object",
+          "properties": {
+            "length": { "type": "string", "enum": ["mm", "m"] },
+            "pressure": { "type": "string", "enum": ["kPa", "MPa"] },
+            "temperature": { "type": "string", "enum": ["degC"] }
+          }
+        },
+        "coordinate_spaces": { "type": "object" }
+      }
+    },
+    "plant": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "plant_id": { "type": "string" },
+        "area_id": { "type": "string" },
+        "unit_id": { "type": "string" },
+        "system_id": { "type": "string" },
+        "extra": { "type": "object" }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": {
+            "type": "string",
+            "enum": ["Equipment", "EquipmentPort", "InlineInstrument", "Junction", "Boundary"]
+          },
+          "role": { "type": "string" },
+          "label": { "type": "string" },
+          "pid_tag": { "type": "string" },
+          "equipment_ref": { "type": "string" },
+          "ports": { "type": "array", "items": { "type": "object" } },
+          "location_2d": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "space": { "type": "string" }
+            }
+          },
+          "placement_hint": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "z_layers": { "type": "array", "items": { "type": "integer" } },
+              "anchor_policy": { "type": "string", "enum": ["fixed", "near_seed", "free"] },
+              "direction_preferred": { "type": "string", "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] }
+            }
+          },
+          "bbox_hint": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "extent_voxels": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 1 },
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "clearance_voxels": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "properties": { "type": "object" },
+          "extra": { "type": "object" }
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "from_node", "to_node"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "tag": { "type": "string" },
+          "from_node": { "type": "string" },
+          "to_node": { "type": "string" },
+          "via_nodes": { "type": "array", "items": { "type": "string" } },
+          "service": { "type": "string" },
+          "fluid": { "type": "string" },
+          "design_pressure_kpa": { "type": "number" },
+          "design_temperature_degC": { "type": "number" },
+          "nominal_diameter_mm": { "type": "number", "minimum": 0 },
+          "spec": { "type": "string" },
+          "fluid_class": {
+            "type": ["string", "null"],
+            "enum": ["A1", "A2", "B", "C", "D", "unknown", null]
+          },
+          "layout_type": {
+            "type": "string",
+            "enum": ["above_ground", "trench", "buried", "pipe_rack"]
+          },
+          "phase": {
+            "type": "string",
+            "enum": ["gas", "liquid", "steam", "two_phase"]
+          },
+          "allow_backflow": { "type": "boolean" },
+          "requires_check_valve": { "type": "boolean" },
+          "valve_subtype": { "type": "string", "enum": ["Gate", "Ball"] },
+          "with_flanges": { "type": "boolean" },
+          "is_relief_line": { "type": "boolean" },
+          "properties": { "type": "object" },
+          "extra": { "type": "object" }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "routing_rules": { "type": "object" },
+        "spatial_rules": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "default_clearance_voxels": { "type": "integer", "minimum": 0 },
+            "max_search_radius_voxels": { "type": "integer", "minimum": 0 },
+            "default_z_layers": { "type": "array", "items": { "type": "integer" } }
+          }
+        },
+        "keepout_zones": { "type": "array", "items": { "type": "object" } },
+        "preferred_zones": { "type": "array", "items": { "type": "object" } },
+        "extra": { "type": "object" }
+      }
+    },
+    "source_trace": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "pid_document_id": { "type": "string" },
+        "pages": { "type": "array" },
+        "nodes": { "type": "object" },
+        "lines": { "type": "object" },
+        "extra": { "type": "object" }
+      }
+    }
+  }
+}

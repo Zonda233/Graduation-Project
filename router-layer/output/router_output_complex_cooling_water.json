@@ -1,0 +1,445 @@
+{
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "router_layer_seq_a_star",
+    "coordinate_system": {
+      "type": "right_handed",
+      "up_axis": "Z",
+      "unit": "meter"
+    },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "dimensions": [
+        20,
+        20,
+        20
+      ]
+    }
+  },
+  "materials": [
+    {
+      "id": "mat_carbon_steel",
+      "display_name": "碳钢",
+      "visual": {
+        "base_color": [
+          0.4,
+          0.4,
+          0.45,
+          1.0
+        ],
+        "metallic": 0.9,
+        "roughness": 0.4
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "tank_01",
+      "type": "Tank",
+      "display_name": "Placeholder tank_01",
+      "voxel_origin": [
+        0,
+        8,
+        0
+      ],
+      "voxel_extent": [
+        4,
+        4,
+        6
+      ],
+      "wc_center": [
+        0.5,
+        2.1,
+        0.625
+      ],
+      "material_id": "mat_carbon_steel",
+      "geometry": {
+        "shell_radius": 0.3,
+        "shell_height": 0.5,
+        "head_type": "ellipsoidal",
+        "head_ratio": 0.25,
+        "orientation": "vertical"
+      },
+      "ports": [
+        {
+          "port_id": "tank_01_outlet",
+          "role": "outlet",
+          "vc": [
+            2,
+            10,
+            1
+          ],
+          "wc": [
+            0.5,
+            2.1,
+            0.30000000000000004
+          ],
+          "direction": "-Z",
+          "nominal_diameter": 0.1
+        }
+      ]
+    }
+  ],
+  "tee_joints": [
+    {
+      "tee_id": "tee_01",
+      "vc_center": [
+        7,
+        10,
+        0
+      ],
+      "wc_center": [
+        1.5,
+        2.1,
+        0.1
+      ],
+      "ports": [
+        {
+          "port_id": "tee_01_run_a",
+          "axis": "-X",
+          "connects_to_comp": "seg_L_main_a_1_c02"
+        },
+        {
+          "port_id": "tee_01_run_b",
+          "axis": "+X",
+          "connects_to_comp": "seg_L_main_a_2_c00"
+        },
+        {
+          "port_id": "tee_01_branch",
+          "axis": "+Y",
+          "connects_to_comp": "seg_L_branch_1_c00"
+        }
+      ],
+      "spec": {
+        "main_diameter": 0.1,
+        "branch_diameter": 0.08,
+        "material_id": "mat_carbon_steel"
+      }
+    },
+    {
+      "tee_id": "tee_02",
+      "vc_center": [
+        13,
+        10,
+        0
+      ],
+      "wc_center": [
+        2.7,
+        2.1,
+        0.1
+      ],
+      "ports": [
+        {
+          "port_id": "tee_02_run_a",
+          "axis": "-X",
+          "connects_to_comp": "seg_L_main_a_2_c00"
+        },
+        {
+          "port_id": "tee_02_run_b",
+          "axis": "+X",
+          "connects_to_comp": "seg_L_main_a_3_c00"
+        },
+        {
+          "port_id": "tee_02_branch",
+          "axis": "+Y",
+          "connects_to_comp": "seg_L_branch_2_c00"
+        }
+      ],
+      "spec": {
+        "main_diameter": 0.1,
+        "branch_diameter": 0.065,
+        "material_id": "mat_carbon_steel"
+      }
+    }
+  ],
+  "segments": [
+    {
+      "id": "seg_L_main_a_1",
+      "display_name": "CW-MAIN-A-100-CS",
+      "from_port": "tank_01_outlet",
+      "to_port": "tee_01_run_a",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": true
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_main_a_1_c00",
+          "type": "Pipe",
+          "vc_start": [
+            2,
+            10,
+            1
+          ],
+          "vc_end": [
+            2,
+            10,
+            0
+          ],
+          "wc_start": [
+            0.5,
+            2.1,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            0.5,
+            2.1,
+            0.27444999999999997
+          ],
+          "axis": "-Z",
+          "length_m": 0.02555
+        },
+        {
+          "comp_id": "seg_L_main_a_1_c01",
+          "type": "Elbow",
+          "vc_center": [
+            2,
+            10,
+            0
+          ],
+          "wc_center": [
+            0.5,
+            2.1,
+            0.1
+          ],
+          "axis_in": "-Z",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.17145
+        },
+        {
+          "comp_id": "seg_L_main_a_1_c02",
+          "type": "Pipe",
+          "vc_start": [
+            2,
+            10,
+            0
+          ],
+          "vc_end": [
+            7,
+            10,
+            0
+          ],
+          "wc_start": [
+            0.67445,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            1.32855,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.6541
+        }
+      ]
+    },
+    {
+      "id": "seg_L_main_a_2",
+      "display_name": "CW-MAIN-A-100-CS",
+      "from_port": "tee_01_run_b",
+      "to_port": "tee_02_run_a",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": true
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_main_a_2_c00",
+          "type": "Pipe",
+          "vc_start": [
+            7,
+            10,
+            0
+          ],
+          "vc_end": [
+            13,
+            10,
+            0
+          ],
+          "wc_start": [
+            1.67145,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            2.52855,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.8571
+        }
+      ]
+    },
+    {
+      "id": "seg_L_main_a_3",
+      "display_name": "CW-MAIN-A-100-CS",
+      "from_port": "tee_02_run_b",
+      "to_port": "end_cap_run",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": true
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_main_a_3_c00",
+          "type": "Pipe",
+          "vc_start": [
+            13,
+            10,
+            0
+          ],
+          "vc_end": [
+            18,
+            10,
+            0
+          ],
+          "wc_start": [
+            2.8714500000000003,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            3.7,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.82855
+        }
+      ]
+    },
+    {
+      "id": "seg_L_branch_1",
+      "display_name": "CW-BR-01-80-CS",
+      "from_port": "tee_01_branch",
+      "to_port": "end_cap_branch_1",
+      "spec": {
+        "nominal_diameter": 0.08,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": true
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_branch_1_c00",
+          "type": "Pipe",
+          "vc_start": [
+            7,
+            10,
+            0
+          ],
+          "vc_end": [
+            7,
+            16,
+            0
+          ],
+          "wc_start": [
+            1.5,
+            2.242875,
+            0.1
+          ],
+          "wc_end": [
+            1.5,
+            3.16365,
+            0.1
+          ],
+          "axis": "+Y",
+          "length_m": 0.920775
+        },
+        {
+          "comp_id": "seg_L_branch_1_c01",
+          "type": "Elbow",
+          "vc_center": [
+            7,
+            16,
+            0
+          ],
+          "wc_center": [
+            1.5,
+            3.3000000000000003,
+            0.1
+          ],
+          "axis_in": "+Y",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.13335
+        },
+        {
+          "comp_id": "seg_L_branch_1_c02",
+          "type": "Pipe",
+          "vc_start": [
+            7,
+            16,
+            0
+          ],
+          "vc_end": [
+            8,
+            16,
+            0
+          ],
+          "wc_start": [
+            1.63635,
+            3.3000000000000003,
+            0.1
+          ],
+          "wc_end": [
+            1.7000000000000002,
+            3.3000000000000003,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.06365
+        }
+      ]
+    },
+    {
+      "id": "seg_L_branch_2",
+      "display_name": "CW-BR-02-65-CS",
+      "from_port": "tee_02_branch",
+      "to_port": "end_cap_branch_2",
+      "spec": {
+        "nominal_diameter": 0.065,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": true
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_branch_2_c00",
+          "type": "Pipe",
+          "vc_start": [
+            13,
+            10,
+            0
+          ],
+          "vc_end": [
+            13,
+            16,
+            0
+          ],
+          "wc_start": [
+            2.7,
+            2.242875,
+            0.1
+          ],
+          "wc_end": [
+            2.7,
+            3.3000000000000003,
+            0.1
+          ],
+          "axis": "+Y",
+          "length_m": 1.057125
+        }
+      ]
+    }
+  ]
+}

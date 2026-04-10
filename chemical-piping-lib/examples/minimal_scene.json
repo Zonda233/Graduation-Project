@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "manual_test",
+    "coordinate_system": { "type": "right_handed", "up_axis": "Z", "unit": "meter" },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc":  [0.0, 0.0, 0.0],
+      "dimensions": [20, 20, 20]
+    }
+  },
+
+  "materials": [
+    {
+      "id": "mat_cs",
+      "display_name": "\u78b3\u9506",
+      "visual": { "base_color": [0.4, 0.4, 0.45, 1.0], "metallic": 0.9, "roughness": 0.4 }
+    },
+    {
+      "id": "mat_ss",
+      "display_name": "\u4e0d\u9508\u9506",
+      "visual": { "base_color": [0.7, 0.7, 0.75, 1.0], "metallic": 1.0, "roughness": 0.2 }
+    }
+  ],
+
+  "assets": [
+    {
+      "id": "tank_01",
+      "type": "Tank",
+      "voxel_origin": [2, 2, 0],
+      "voxel_extent": [3, 3, 6],
+      "geometry": {
+        "shell_radius":  0.4,
+        "shell_height":  0.8,
+        "head_type":     "ellipsoidal",
+        "orientation":   "vertical"
+      },
+      "material_id": "mat_ss",
+      "ports": [
+        {
+          "port_id":          "tank_01_outlet",
+          "role":             "outlet",
+          "vc":               [3, 3, 0],
+          "wc":               [0.7, 0.7, 0.0],
+          "direction":        "-Z",
+          "nominal_diameter": 0.1
+        }
+      ]
+    }
+  ],
+
+  "tee_joints": [
+    {
+      "tee_id":    "tee_01",
+      "id":        "tee_01",
+      "wc_center": [1.5, 0.7, -0.4],
+      "ports": [
+        { "port_id": "tee_01_run_a",  "axis": "-X", "connects_to_comp": "s01_c03" },
+        { "port_id": "tee_01_run_b",  "axis": "+X", "connects_to_comp": "s02_c01" },
+        { "port_id": "tee_01_branch", "axis": "+Y", "connects_to_comp": "s03_c01" }
+      ],
+      "spec": {
+        "main_diameter":   0.1,
+        "branch_diameter": 0.1,
+        "material_id":     "mat_cs"
+      }
+    }
+  ],
+
+  "segments": [
+    {
+      "id": "seg_01",
+      "display_name": "T-101\u51fa\u53e3\u5230\u4e09\u901a",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id":      "mat_cs",
+        "with_flanges":     true
+      },
+      "from_port": "tank_01_outlet",
+      "to_port":   null,
+      "components": [
+        {
+          "comp_id":  "s01_c01",
+          "type":     "Pipe",
+          "wc_start": [0.7, 0.7, -0.05],
+          "wc_end":   [0.7, 0.7, -0.25],
+          "axis":     "-Z",
+          "length_m": 0.2
+        },
+        {
+          "comp_id":      "s01_c02",
+          "type":         "Elbow",
+          "wc_center":    [0.7, 0.7, -0.4],
+          "axis_in":      "-Z",
+          "axis_out":     "+X",
+          "angle_deg":    90,
+          "bend_radius_m": 0.15
+        },
+        {
+          "comp_id":  "s01_c03",
+          "type":     "Pipe",
+          "wc_start": [0.85, 0.7, -0.4],
+          "wc_end":   [1.3286, 0.7, -0.4],
+          "axis":     "+X",
+          "length_m": 0.4786
+        }
+      ]
+    },
+    {
+      "id": "seg_02",
+      "display_name": "\u4e09\u901a\u5230\u9600",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id":      "mat_cs",
+        "with_flanges":     true
+      },
+      "from_port": null,
+      "to_port":   null,
+      "components": [
+        {
+          "comp_id":  "s02_c01",
+          "type":     "Pipe",
+          "wc_start": [1.6714, 0.7, -0.4],
+          "wc_end":   [2.3, 0.7, -0.4],
+          "axis":     "+X",
+          "length_m": 0.6286
+        },
+        {
+          "comp_id":          "s02_c02",
+          "type":             "Valve",
+          "subtype":          "Gate",
+          "wc_start":         [2.3, 0.7, -0.4],
+          "wc_end":           [2.7, 0.7, -0.4],
+          "axis":             "+X",
+          "nominal_diameter": 0.1
+        },
+        {
+          "comp_id":  "s02_c03",
+          "type":     "Pipe",
+          "wc_start": [2.7, 0.7, -0.4],
+          "wc_end":   [3.3, 0.7, -0.4],
+          "axis":     "+X",
+          "length_m": 0.6
+        }
+      ]
+    }
+  ]
+}
