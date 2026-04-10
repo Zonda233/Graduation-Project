@@ -116,6 +116,7 @@ class RouterInputParser:
         loc_raw = self._safe_get_dict(raw, "location_2d")
         placement_raw = self._safe_get_dict(raw, "placement_hint")
         bbox_raw = self._safe_get_dict(raw, "bbox_hint")
+        properties_raw = self._safe_get_dict(raw, "properties")
 
         location_2d_x = self._safe_get_float(loc_raw, "x")
         location_2d_y = self._safe_get_float(loc_raw, "y")
@@ -131,6 +132,7 @@ class RouterInputParser:
             equipment_ref=self._safe_get_str(raw, "equipment_ref", default=None),
             location_2d_x=location_2d_x,
             location_2d_y=location_2d_y,
+            properties=properties_raw,
             placement_hint=placement_hint,
             bbox_hint=bbox_hint,
         )

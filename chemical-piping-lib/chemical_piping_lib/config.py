@@ -165,6 +165,41 @@ def get_dn_spec(nominal_diameter_m: float) -> dict[str, float]:
     return DN_TABLE[best_key]
 
 
+def resolve_pipe_cross_section(nominal_diameter_m: float) -> dict[str, float]:
+    """
+    Resolve pipe cross-section dimensions for both process and small-bore lines.
+
+    For standard process diameters this delegates to :func:`get_dn_spec`.
+    If no DN match exists (e.g. instrument impulse tubing), a small-bore
+    approximation is returned so geometry generation can proceed.
+
+    Parameters
+    ----------
+    nominal_diameter_m:
+        Nominal diameter in metres.  Must be positive.
+
+    Returns
+    -------
+    dict with keys ``outer_diameter`` and ``wall_thickness`` (metres).
+    """
+    if nominal_diameter_m <= 0.0:
+        raise ValueError(
+            f"nominal_diameter_m must be > 0, got {nominal_diameter_m!r}."
+        )
+
+    try:
+        return get_dn_spec(nominal_diameter_m)
+    except ValueError:
+        # Small-bore fallback: approximate OD as tubing OD and keep a sane
+        # wall thickness ratio with lower/upper bounds for mesh robustness.
+        outer_diameter = max(nominal_diameter_m * 1.2, nominal_diameter_m + 0.001)
+        wall_thickness = min(max(outer_diameter * 0.10, 0.0008), outer_diameter * 0.35)
+        return {
+            "outer_diameter": outer_diameter,
+            "wall_thickness": wall_thickness,
+        }
+
+
 # ===========================================================================
 # 6.  Flange specifications (simplified, PN16 series)
 #     Dimensions follow GB/T 9119 / EN 1092-1.

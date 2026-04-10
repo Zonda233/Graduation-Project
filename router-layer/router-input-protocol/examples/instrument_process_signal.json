@@ -1,0 +1,126 @@
+{
+  "_comment": "综合场景：两台设备之间一条工艺线 + 两条仪表信号线（温度计/压力表到同一被测设备取压口）。",
+  "meta": {
+    "schema_name": "router_input_v1",
+    "protocol_version": "0.1.0",
+    "created_at": "2026-04-10T12:00:00Z",
+    "generator": "manual_instrument_demo",
+    "units": {
+      "length": "m",
+      "pressure": "kPa",
+      "temperature": "degC"
+    }
+  },
+  "plant": {
+    "plant_id": "PLANT_A",
+    "unit_id": "UNIT_01",
+    "system_id": "SYS-PROCESS-INSTRUMENT"
+  },
+  "nodes": [
+    {
+      "id": "port_tank_A_outlet",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "TANK-A 出口",
+      "equipment_ref": "tank_A",
+      "location_2d": { "x": 0.20, "y": 0.50, "space": "diagram_2d" },
+      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "-Z" },
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 1 }
+    },
+    {
+      "id": "port_tank_B_inlet",
+      "type": "EquipmentPort",
+      "role": "inlet",
+      "label": "TANK-B 入口",
+      "equipment_ref": "tank_B",
+      "location_2d": { "x": 0.80, "y": 0.50, "space": "diagram_2d" },
+      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "-Z" },
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 1 }
+    },
+    {
+      "id": "port_tank_A_tap_TI101",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "TANK-A 温度取样口",
+      "equipment_ref": "tank_A",
+      "location_2d": { "x": 0.28, "y": 0.66, "space": "diagram_2d" },
+      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed" },
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 }
+    },
+    {
+      "id": "port_tank_A_tap_PI102",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "TANK-A 压力取样口",
+      "equipment_ref": "tank_A",
+      "location_2d": { "x": 0.28, "y": 0.34, "space": "diagram_2d" },
+      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed" },
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 }
+    },
+    {
+      "id": "inst_TI101",
+      "type": "InlineInstrument",
+      "label": "TI-101",
+      "pid_tag": "TI-101",
+      "location_2d": { "x": 0.08, "y": 0.66, "space": "diagram_2d" },
+      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "+X" },
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "properties": {
+        "instrument_kind": "thermometer",
+        "nominal_diameter_mm": 6
+      }
+    },
+    {
+      "id": "inst_PI102",
+      "type": "InlineInstrument",
+      "label": "PI-102",
+      "pid_tag": "PI-102",
+      "location_2d": { "x": 0.08, "y": 0.34, "space": "diagram_2d" },
+      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "+X" },
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "properties": {
+        "instrument_kind": "pressure_gauge",
+        "nominal_diameter_mm": 6
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "L_process_A_to_B",
+      "tag": "PROC-A-B-DN100",
+      "from_node": "port_tank_A_outlet",
+      "to_node": "port_tank_B_inlet",
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 100,
+      "with_flanges": true
+    },
+    {
+      "id": "L_sig_TI101",
+      "tag": "SIG-TI101",
+      "from_node": "inst_TI101",
+      "to_node": "port_tank_A_tap_TI101",
+      "service": "instrument_signal",
+      "fluid": "Impulse",
+      "nominal_diameter_mm": 6,
+      "with_flanges": false
+    },
+    {
+      "id": "L_sig_PI102",
+      "tag": "SIG-PI102",
+      "from_node": "inst_PI102",
+      "to_node": "port_tank_A_tap_PI102",
+      "service": "instrument_signal",
+      "fluid": "Impulse",
+      "nominal_diameter_mm": 6,
+      "with_flanges": false
+    }
+  ],
+  "constraints": {
+    "spatial_rules": {
+      "default_clearance_voxels": 0,
+      "max_search_radius_voxels": 5,
+      "default_z_layers": [0, 1]
+    }
+  }
+}

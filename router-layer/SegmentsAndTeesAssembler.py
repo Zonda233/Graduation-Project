@@ -155,7 +155,13 @@ class SegmentsAndTeesAssembler:
 
         for desc in descriptors:
             nominal_diameter_m = self._nominal_m(desc.line.nominal_diameter_mm)
-            components = self._path_converter.convert(desc.path_slice, desc.seg_id, nominal_diameter_m)
+            straight_type = "SignalLine" if self._is_instrument_signal_line(desc.line) else "Pipe"
+            components = self._path_converter.convert(
+                desc.path_slice,
+                desc.seg_id,
+                nominal_diameter_m,
+                straight_type=straight_type,
+            )
             if not components:
                 continue
 
@@ -181,6 +187,11 @@ class SegmentsAndTeesAssembler:
                 "components": components,
             }
         return segment_by_id, tee_run_a_comp, tee_run_b_comp, tee_branch_comp
+
+    @staticmethod
+    def _is_instrument_signal_line(line: LineSpec) -> bool:
+        service = str(line.raw.get("service", "")).strip().lower()
+        return service == "instrument_signal"
 
     def _build_tee_axes(
         self,

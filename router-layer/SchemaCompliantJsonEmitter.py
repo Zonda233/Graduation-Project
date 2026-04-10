@@ -4,6 +4,7 @@ from typing import Dict
 
 from .GenerationMetaBuilder import GenerationMetaBuilder
 from .IJsonEmitter import IJsonEmitter
+from .InstrumentAssetBuilder import InstrumentAssetBuilder
 from .PlaceholderTankAssetBuilder import PlaceholderTankAssetBuilder
 from .RouterInputModels import RouterInput
 from .SchemaDefaultMaterials import SchemaDefaultMaterials
@@ -19,6 +20,7 @@ class SchemaCompliantJsonEmitter(IJsonEmitter):
         self._meta = GenerationMetaBuilder()
         self._materials = SchemaDefaultMaterials()
         self._tank_builder = PlaceholderTankAssetBuilder()
+        self._instrument_builder = InstrumentAssetBuilder()
 
     def emit(
         self,
@@ -30,7 +32,9 @@ class SchemaCompliantJsonEmitter(IJsonEmitter):
         meta = self._meta.build(config)
         assembler = SegmentsAndTeesAssembler(config)
         segments, tee_joints = assembler.build(router_input, placed_nodes, line_routes)
-        assets = self._tank_builder.build(router_input, placed_nodes, config)
+        tank_assets = self._tank_builder.build(router_input, placed_nodes, config)
+        instrument_assets = self._instrument_builder.build(router_input, placed_nodes)
+        assets = tank_assets + instrument_assets
         return {
             "meta": meta,
             "materials": self._materials.carbon_steel_list(),

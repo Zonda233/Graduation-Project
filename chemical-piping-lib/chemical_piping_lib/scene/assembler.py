@@ -109,6 +109,10 @@ def _get_asset_class(type_str: str):
         from chemical_piping_lib.assets.reducer import Reducer; return Reducer
     if type_str == "Cap":
         from chemical_piping_lib.assets.cap import Cap; return Cap
+    if type_str == "SignalLine":
+        from chemical_piping_lib.assets.signal_line import SignalLine; return SignalLine
+    if type_str == "Instrument":
+        from chemical_piping_lib.assets.instrument import Instrument; return Instrument
     raise ValueError(f"Unknown asset type: {type_str!r}")
 
 

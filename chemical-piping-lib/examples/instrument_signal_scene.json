@@ -1,0 +1,264 @@
+{
+  "_comment": "示例：两台储罐一条工艺线 + 两个仪表 + 两条信号线（SignalLine + Elbow）。",
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "manual_instrument_signal_scene",
+    "coordinate_system": {
+      "type": "right_handed",
+      "up_axis": "Z",
+      "unit": "meter"
+    },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc": [0.0, 0.0, 0.0],
+      "dimensions": [20, 20, 20]
+    }
+  },
+  "materials": [
+    {
+      "id": "mat_carbon_steel",
+      "display_name": "碳钢",
+      "visual": {
+        "base_color": [0.4, 0.4, 0.45, 1.0],
+        "metallic": 0.9,
+        "roughness": 0.4
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "tank_A",
+      "type": "Tank",
+      "display_name": "Tank-A",
+      "wc_center": [0.9, 2.0, 0.6],
+      "material_id": "mat_carbon_steel",
+      "geometry": {
+        "shell_radius": 0.3,
+        "shell_height": 0.5,
+        "head_type": "ellipsoidal",
+        "head_ratio": 0.25,
+        "orientation": "vertical"
+      },
+      "ports": [
+        {
+          "port_id": "port_tank_A_outlet",
+          "role": "outlet",
+          "wc": [0.9, 2.0, 0.2],
+          "direction": "-Z",
+          "nominal_diameter": 0.1
+        },
+        {
+          "port_id": "port_tank_A_tap_TI101",
+          "role": "outlet",
+          "wc": [1.15, 2.2, 0.3],
+          "direction": "+X",
+          "nominal_diameter": 0.006
+        },
+        {
+          "port_id": "port_tank_A_tap_PI102",
+          "role": "outlet",
+          "wc": [1.15, 1.8, 0.3],
+          "direction": "+X",
+          "nominal_diameter": 0.006
+        }
+      ]
+    },
+    {
+      "id": "tank_B",
+      "type": "Tank",
+      "display_name": "Tank-B",
+      "wc_center": [3.2, 2.0, 0.6],
+      "material_id": "mat_carbon_steel",
+      "geometry": {
+        "shell_radius": 0.3,
+        "shell_height": 0.5,
+        "head_type": "ellipsoidal",
+        "head_ratio": 0.25,
+        "orientation": "vertical"
+      },
+      "ports": [
+        {
+          "port_id": "port_tank_B_inlet",
+          "role": "inlet",
+          "wc": [2.95, 2.0, 0.3],
+          "direction": "-X",
+          "nominal_diameter": 0.1
+        }
+      ]
+    },
+    {
+      "id": "inst_TI101",
+      "type": "Instrument",
+      "display_name": "TI-101",
+      "instrument_kind": "thermometer",
+      "wc_center": [0.45, 2.2, 0.3],
+      "material_id": "mat_carbon_steel",
+      "geometry": {
+        "face_axis": "+X"
+      },
+      "ports": [
+        {
+          "port_id": "inst_TI101",
+          "role": "signal",
+          "wc": [0.45, 2.2, 0.3],
+          "direction": "+X",
+          "nominal_diameter": 0.006
+        }
+      ]
+    },
+    {
+      "id": "inst_PI102",
+      "type": "Instrument",
+      "display_name": "PI-102",
+      "instrument_kind": "pressure_gauge",
+      "wc_center": [0.45, 1.8, 0.3],
+      "material_id": "mat_carbon_steel",
+      "geometry": {
+        "face_axis": "+X"
+      },
+      "ports": [
+        {
+          "port_id": "inst_PI102",
+          "role": "signal",
+          "wc": [0.45, 1.8, 0.3],
+          "direction": "+X",
+          "nominal_diameter": 0.006
+        }
+      ]
+    }
+  ],
+  "tee_joints": [],
+  "segments": [
+    {
+      "id": "seg_process_A_to_B",
+      "display_name": "PROC-A-B-DN100",
+      "from_port": "port_tank_A_outlet",
+      "to_port": "port_tank_B_inlet",
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "seg_process_A_to_B_c00",
+          "type": "Pipe",
+          "wc_start": [0.9, 2.0, 0.2],
+          "wc_end": [0.9, 2.0, 0.1],
+          "axis": "-Z",
+          "length_m": 0.1
+        },
+        {
+          "comp_id": "seg_process_A_to_B_c01",
+          "type": "Elbow",
+          "wc_center": [0.9, 2.0, 0.1],
+          "axis_in": "-Z",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.15
+        },
+        {
+          "comp_id": "seg_process_A_to_B_c02",
+          "type": "Pipe",
+          "wc_start": [1.05, 2.0, 0.1],
+          "wc_end": [2.95, 2.0, 0.1],
+          "axis": "+X",
+          "length_m": 1.9
+        },
+        {
+          "comp_id": "seg_process_A_to_B_c03",
+          "type": "Elbow",
+          "wc_center": [2.95, 2.0, 0.1],
+          "axis_in": "+X",
+          "axis_out": "+Z",
+          "angle_deg": 90,
+          "bend_radius_m": 0.15
+        },
+        {
+          "comp_id": "seg_process_A_to_B_c04",
+          "type": "Pipe",
+          "wc_start": [2.95, 2.0, 0.25],
+          "wc_end": [2.95, 2.0, 0.3],
+          "axis": "+Z",
+          "length_m": 0.05
+        }
+      ]
+    },
+    {
+      "id": "seg_sig_TI101",
+      "display_name": "SIG-TI101",
+      "from_port": "inst_TI101",
+      "to_port": "port_tank_A_tap_TI101",
+      "spec": {
+        "nominal_diameter": 0.006,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "seg_sig_TI101_c00",
+          "type": "SignalLine",
+          "wc_start": [0.45, 2.2, 0.3],
+          "wc_end": [0.95, 2.2, 0.3],
+          "axis": "+X",
+          "length_m": 0.5
+        },
+        {
+          "comp_id": "seg_sig_TI101_c01",
+          "type": "Elbow",
+          "wc_center": [0.95, 2.2, 0.3],
+          "axis_in": "+X",
+          "axis_out": "+Y",
+          "angle_deg": 90,
+          "bend_radius_m": 0.03
+        },
+        {
+          "comp_id": "seg_sig_TI101_c02",
+          "type": "SignalLine",
+          "wc_start": [0.95, 2.23, 0.3],
+          "wc_end": [1.15, 2.23, 0.3],
+          "axis": "+X",
+          "length_m": 0.2
+        }
+      ]
+    },
+    {
+      "id": "seg_sig_PI102",
+      "display_name": "SIG-PI102",
+      "from_port": "inst_PI102",
+      "to_port": "port_tank_A_tap_PI102",
+      "spec": {
+        "nominal_diameter": 0.006,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "seg_sig_PI102_c00",
+          "type": "SignalLine",
+          "wc_start": [0.45, 1.8, 0.3],
+          "wc_end": [0.95, 1.8, 0.3],
+          "axis": "+X",
+          "length_m": 0.5
+        },
+        {
+          "comp_id": "seg_sig_PI102_c01",
+          "type": "Elbow",
+          "wc_center": [0.95, 1.8, 0.3],
+          "axis_in": "+X",
+          "axis_out": "-Y",
+          "angle_deg": 90,
+          "bend_radius_m": 0.03
+        },
+        {
+          "comp_id": "seg_sig_PI102_c02",
+          "type": "SignalLine",
+          "wc_start": [0.95, 1.77, 0.3],
+          "wc_end": [1.15, 1.77, 0.3],
+          "axis": "+X",
+          "length_m": 0.2
+        }
+      ]
+    }
+  ]
+}

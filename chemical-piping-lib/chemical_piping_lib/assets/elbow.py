@@ -47,7 +47,7 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-from chemical_piping_lib.config import RUNTIME, get_dn_spec
+from chemical_piping_lib.config import RUNTIME, resolve_pipe_cross_section
 from chemical_piping_lib.utils.bmesh_utils import (
     bm_to_object,
     make_elbow_sweep,
@@ -94,7 +94,7 @@ class Elbow(PipingAsset):
 
         # Pipe geometry.
         nominal_d = float(spec["nominal_diameter"])
-        dn_spec   = get_dn_spec(nominal_d)
+        dn_spec   = resolve_pipe_cross_section(nominal_d)
         self.outer_radius: float = dn_spec["outer_diameter"] / 2.0
 
         # Bend radius: JSON value or 1.5 × OD (industry standard).

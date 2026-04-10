@@ -19,4 +19,6 @@ Public classes
    tank.Tank
    reducer.Reducer
    cap.Cap
+   instrument.Instrument
+   signal_line.SignalLine
 """

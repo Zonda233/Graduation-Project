@@ -1,0 +1,381 @@
+{
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "router_layer_seq_a_star",
+    "coordinate_system": {
+      "type": "right_handed",
+      "up_axis": "Z",
+      "unit": "meter"
+    },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "dimensions": [
+        20,
+        20,
+        20
+      ]
+    }
+  },
+  "materials": [
+    {
+      "id": "mat_carbon_steel",
+      "display_name": "碳钢",
+      "visual": {
+        "base_color": [
+          0.4,
+          0.4,
+          0.45,
+          1.0
+        ],
+        "metallic": 0.9,
+        "roughness": 0.4
+      }
+    }
+  ],
+  "assets": [],
+  "tee_joints": [],
+  "segments": [
+    {
+      "id": "seg_L_process_out",
+      "display_name": "T-101-OUT-DN80",
+      "from_port": "port_tank_outlet",
+      "to_port": "junc_outlet_end",
+      "spec": {
+        "nominal_diameter": 0.08,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": true
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_process_out_c00",
+          "type": "Pipe",
+          "vc_start": [
+            4,
+            16,
+            1
+          ],
+          "vc_end": [
+            4,
+            16,
+            0
+          ],
+          "wc_start": [
+            0.9,
+            3.3000000000000003,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            0.9,
+            3.3000000000000003,
+            0.23635000000000003
+          ],
+          "axis": "-Z",
+          "length_m": 0.06365
+        },
+        {
+          "comp_id": "seg_L_process_out_c01",
+          "type": "Elbow",
+          "vc_center": [
+            4,
+            16,
+            0
+          ],
+          "wc_center": [
+            0.9,
+            3.3000000000000003,
+            0.1
+          ],
+          "axis_in": "-Z",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.13335
+        },
+        {
+          "comp_id": "seg_L_process_out_c02",
+          "type": "Pipe",
+          "vc_start": [
+            4,
+            16,
+            0
+          ],
+          "vc_end": [
+            19,
+            16,
+            0
+          ],
+          "wc_start": [
+            1.03635,
+            3.3000000000000003,
+            0.1
+          ],
+          "wc_end": [
+            3.9000000000000004,
+            3.3000000000000003,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 2.86365
+        }
+      ]
+    },
+    {
+      "id": "seg_L_sig_TI101",
+      "display_name": "SIG-TI101",
+      "from_port": "inst_TI101",
+      "to_port": "port_tank_tap_TI101",
+      "spec": {
+        "nominal_diameter": 0.006,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_sig_TI101_c00",
+          "type": "Pipe",
+          "vc_start": [
+            2,
+            12,
+            1
+          ],
+          "vc_end": [
+            1,
+            12,
+            1
+          ],
+          "wc_start": [
+            0.5,
+            2.5,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            0.33501000000000003,
+            2.5,
+            0.30000000000000004
+          ],
+          "axis": "-X",
+          "length_m": 0.16499
+        },
+        {
+          "comp_id": "seg_L_sig_TI101_c01",
+          "type": "Elbow",
+          "vc_center": [
+            1,
+            12,
+            1
+          ],
+          "wc_center": [
+            0.30000000000000004,
+            2.5,
+            0.30000000000000004
+          ],
+          "axis_in": "-X",
+          "axis_out": "-Y",
+          "angle_deg": 90,
+          "bend_radius_m": 0.03201
+        },
+        {
+          "comp_id": "seg_L_sig_TI101_c02",
+          "type": "Pipe",
+          "vc_start": [
+            1,
+            12,
+            1
+          ],
+          "vc_end": [
+            1,
+            10,
+            1
+          ],
+          "wc_start": [
+            0.30000000000000004,
+            2.46499,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            0.30000000000000004,
+            2.1350100000000003,
+            0.30000000000000004
+          ],
+          "axis": "-Y",
+          "length_m": 0.32998
+        },
+        {
+          "comp_id": "seg_L_sig_TI101_c03",
+          "type": "Elbow",
+          "vc_center": [
+            1,
+            10,
+            1
+          ],
+          "wc_center": [
+            0.30000000000000004,
+            2.1,
+            0.30000000000000004
+          ],
+          "axis_in": "-Y",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.03201
+        },
+        {
+          "comp_id": "seg_L_sig_TI101_c04",
+          "type": "Pipe",
+          "vc_start": [
+            1,
+            10,
+            1
+          ],
+          "vc_end": [
+            17,
+            10,
+            1
+          ],
+          "wc_start": [
+            0.33501000000000003,
+            2.1,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            3.5,
+            2.1,
+            0.30000000000000004
+          ],
+          "axis": "+X",
+          "length_m": 3.16499
+        }
+      ]
+    },
+    {
+      "id": "seg_L_sig_PI102",
+      "display_name": "SIG-PI102",
+      "from_port": "inst_PI102",
+      "to_port": "port_tank_tap_PI102",
+      "spec": {
+        "nominal_diameter": 0.006,
+        "material_id": "mat_carbon_steel",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "seg_L_sig_PI102_c00",
+          "type": "Pipe",
+          "vc_start": [
+            1,
+            7,
+            1
+          ],
+          "vc_end": [
+            2,
+            7,
+            1
+          ],
+          "wc_start": [
+            0.30000000000000004,
+            1.5,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            0.46499,
+            1.5,
+            0.30000000000000004
+          ],
+          "axis": "+X",
+          "length_m": 0.16499
+        },
+        {
+          "comp_id": "seg_L_sig_PI102_c01",
+          "type": "Elbow",
+          "vc_center": [
+            2,
+            7,
+            1
+          ],
+          "wc_center": [
+            0.5,
+            1.5,
+            0.30000000000000004
+          ],
+          "axis_in": "+X",
+          "axis_out": "-Y",
+          "angle_deg": 90,
+          "bend_radius_m": 0.03201
+        },
+        {
+          "comp_id": "seg_L_sig_PI102_c02",
+          "type": "Pipe",
+          "vc_start": [
+            2,
+            7,
+            1
+          ],
+          "vc_end": [
+            2,
+            3,
+            1
+          ],
+          "wc_start": [
+            0.5,
+            1.46499,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            0.5,
+            0.73501,
+            0.30000000000000004
+          ],
+          "axis": "-Y",
+          "length_m": 0.72998
+        },
+        {
+          "comp_id": "seg_L_sig_PI102_c03",
+          "type": "Elbow",
+          "vc_center": [
+            2,
+            3,
+            1
+          ],
+          "wc_center": [
+            0.5,
+            0.7000000000000001,
+            0.30000000000000004
+          ],
+          "axis_in": "-Y",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.03201
+        },
+        {
+          "comp_id": "seg_L_sig_PI102_c04",
+          "type": "Pipe",
+          "vc_start": [
+            2,
+            3,
+            1
+          ],
+          "vc_end": [
+            15,
+            3,
+            1
+          ],
+          "wc_start": [
+            0.53501,
+            0.7000000000000001,
+            0.30000000000000004
+          ],
+          "wc_end": [
+            3.1,
+            0.7000000000000001,
+            0.30000000000000004
+          ],
+          "axis": "+X",
+          "length_m": 2.56499
+        }
+      ]
+    }
+  ]
+}

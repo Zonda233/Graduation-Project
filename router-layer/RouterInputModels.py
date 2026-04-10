@@ -34,6 +34,7 @@ class NodeSpec:
     equipment_ref: Optional[str] = None
     location_2d_x: Optional[float] = None
     location_2d_y: Optional[float] = None
+    properties: Dict[str, object] = field(default_factory=dict)
     placement_hint: PlacementHint = field(default_factory=PlacementHint)
     bbox_hint: BBoxHint = field(default_factory=BBoxHint)
 

@@ -10,6 +10,7 @@
 
     python router-layer/tests/test_router_to_generation.py
     python router-layer/tests/test_router_to_generation.py --input router-layer/router-input-protocol/examples/complex_cooling_water.json --output router-layer/output/router_output_complex_cooling_water.json
+    python router-layer/tests/test_router_to_generation.py --input router-layer/router-input-protocol/examples/instrument_process_signal.json --output router-layer/output/router_output_instrument_process_signal.json
 
 或先 cd router-layer，设置 PYTHONPATH 后：
 

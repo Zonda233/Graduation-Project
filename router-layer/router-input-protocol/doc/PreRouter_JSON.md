@@ -74,7 +74,7 @@
 | `location_2d` | object | ❌ | P&ID 上近似位置，如 `{ "x", "y", "space": "diagram_2d" }` |
 | `placement_hint` | object | ❌ | 放置提示（NodePlacer 使用）：如 `z_layers`、`anchor_policy`、`direction_preferred` |
 | `bbox_hint` | object | ❌ | 体素占用提示：如 `extent_voxels:[ex,ey,ez]`、`clearance_voxels`（粗粒度 AABB） |
-| `properties` | object | ❌ | 工艺属性（压力、温度、介质等） |
+| `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；当 `type=InlineInstrument` 时可携带 `instrument_kind`（`thermometer`/`pressure_gauge`）与 `nominal_diameter_mm` |
 | `extra` | object | ❌ | 扩展 |
 
 **node.type 枚举（建议）：** `Equipment` | `EquipmentPort` | `InlineInstrument` | `Junction` | `Boundary`
@@ -92,7 +92,7 @@
 | `from_node` | string | ✅ | 起点 node id |
 | `to_node` | string | ✅ | 终点 node id（末端封闭即对应生成层 Cap） |
 | `via_nodes` | array | ❌ | 中间经过的节点 id 列表（如三通分支点） |
-| `service` | string | ❌ | 介质/服务名（如 CoolingWater） |
+| `service` | string | ❌ | 介质/服务名（如 CoolingWater）；当值为 `instrument_signal` 时路由输出直段组件类型为 `SignalLine` |
 | `fluid` | string | ❌ | 流体名 |
 | `design_pressure_kpa` | number | ❌ | 设计压力 kPa |
 | `design_temperature_degC` | number | ❌ | 设计温度 ℃ |
@@ -141,5 +141,6 @@
 - **lines[]** → Router 拆成多条 **segments** + **tee_joints**（via_nodes 对应三通）；变径点 → Reducer；无下游端点 → Cap
 - **line.tag / spec / nominal_diameter_mm** → 生成层 segments[].spec、display_name
 - **fluid_class / layout_type** → 供 GB 50316 规则引擎与 Router 代价/禁行区使用
+- **InlineInstrument + instrument_signal** → 生成层 `assets[].type="Instrument"`（`ports[].port_id=node.id`）与信号段直段 `type="SignalLine"`，弯头仍为 `Elbow`
 
 详见项目内设计理由文档与 `chemical-piping-lib` 的 `Final_JSON.md`。

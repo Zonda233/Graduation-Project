@@ -71,23 +71,14 @@
         "additionalProperties": true,
         "properties": {
           "id": { "type": "string", "minLength": 1 },
-          "type": { "enum": ["Tank"] },
+          "type": { "enum": ["Tank", "Instrument"] },
+          "instrument_kind": { "enum": ["thermometer", "pressure_gauge"] },
           "display_name": { "type": "string" },
           "voxel_origin": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
           "voxel_extent": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 3, "maxItems": 3 },
           "wc_center": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
           "material_id": { "type": "string" },
-          "geometry": {
-            "type": "object",
-            "required": ["shell_radius", "shell_height", "head_type", "orientation"],
-            "properties": {
-              "shell_radius": { "type": "number", "minimum": 1e-6 },
-              "shell_height": { "type": "number", "minimum": 0 },
-              "head_type": { "enum": ["ellipsoidal", "hemispherical", "flat"] },
-              "head_ratio": { "type": "number", "minimum": 0 },
-              "orientation": { "enum": ["vertical", "horizontal"] }
-            }
-          },
+          "geometry": { "type": "object", "additionalProperties": true },
           "ports": {
             "type": "array",
             "items": {
@@ -96,7 +87,7 @@
               "additionalProperties": true,
               "properties": {
                 "port_id": { "type": "string", "minLength": 1 },
-                "role": { "enum": ["inlet", "outlet", "vent", "drain"] },
+                "role": { "enum": ["inlet", "outlet", "vent", "drain", "signal"] },
                 "vc": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
                 "wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
                 "direction": { "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] },
@@ -106,7 +97,48 @@
               }
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "Tank" } }, "required": ["type"] },
+            "then": {
+              "properties": {
+                "geometry": {
+                  "type": "object",
+                  "required": ["shell_radius", "shell_height", "head_type", "orientation"],
+                  "properties": {
+                    "shell_radius": { "type": "number", "minimum": 1e-6 },
+                    "shell_height": { "type": "number", "minimum": 0 },
+                    "head_type": { "enum": ["ellipsoidal", "hemispherical", "flat"] },
+                    "head_ratio": { "type": "number", "minimum": 0 },
+                    "orientation": { "enum": ["vertical", "horizontal"] }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "type": { "const": "Instrument" } }, "required": ["type"] },
+            "then": {
+              "required": ["wc_center", "instrument_kind"],
+              "properties": {
+                "geometry": {
+                  "type": "object",
+                  "properties": {
+                    "face_axis": { "$ref": "#/$defs/axis" },
+                    "stem_length_m": { "type": "number", "minimum": 1e-6 },
+                    "stem_radius_m": { "type": "number", "minimum": 1e-6 },
+                    "bulb_radius_m": { "type": "number", "minimum": 1e-6 },
+                    "dial_radius_m": { "type": "number", "minimum": 1e-6 },
+                    "dial_depth_m": { "type": "number", "minimum": 1e-6 },
+                    "socket_radius_m": { "type": "number", "minimum": 1e-6 },
+                    "socket_length_m": { "type": "number", "minimum": 1e-6 }
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     "tee_joints": {
@@ -187,11 +219,25 @@
       "properties": {
         "comp_id": { "type": "string" },
         "id": { "type": "string" },
-        "type": { "enum": ["Pipe", "Elbow", "Valve", "Tee", "Flange", "Reducer", "Cap"] }
+        "type": { "enum": ["Pipe", "SignalLine", "Elbow", "Valve", "Tee", "Flange", "Reducer", "Cap"] }
       },
       "allOf": [
         {
           "if": { "properties": { "type": { "const": "Pipe" } }, "required": ["type"] },
+          "then": {
+            "required": ["wc_start", "wc_end", "axis", "length_m"],
+            "properties": {
+              "vc_start": { "$ref": "#/$defs/vec3_int" },
+              "vc_end": { "$ref": "#/$defs/vec3_int" },
+              "wc_start": { "$ref": "#/$defs/vec3_float" },
+              "wc_end": { "$ref": "#/$defs/vec3_float" },
+              "axis": { "$ref": "#/$defs/axis" },
+              "length_m": { "type": "number", "minimum": 1e-6 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "SignalLine" } }, "required": ["type"] },
           "then": {
             "required": ["wc_start", "wc_end", "axis", "length_m"],
             "properties": {

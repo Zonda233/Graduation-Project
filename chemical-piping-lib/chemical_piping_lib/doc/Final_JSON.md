@@ -11,7 +11,7 @@
 1. [总体结构](#1-总体结构)
 2. [meta 块](#2-meta-块)
 3. [materials 块](#3-materials-块)
-4. [assets 块（大型设备）](#4-assets-块大型设备)
+4. [assets 块（设备与仪表）](#4-assets-块设备与仪表)
 5. [tee_joints 块（三通节点）](#5-tee_joints-块三通节点)
 6. [segments 块（管线段）](#6-segments-块管线段)
 7. [枚举值速查表](#7-枚举值速查表)
@@ -133,9 +133,9 @@
 
 ---
 
-## 4. `assets` 块（大型设备）
+## 4. `assets` 块（设备与仪表）
 
-每个 asset 对应一个独立的工艺设备（如储罐、容器）。
+每个 asset 对应一个独立对象：可为工艺设备（如储罐）或在线仪表（温度计、压力表）。
 
 ### 4.1 通用字段
 
@@ -192,6 +192,27 @@
 
 **Tank 定位（生成层约定）：** 设备位置可由 `voxel_origin` + `voxel_extent` 推导中心，或显式给出 `wc_center`。`wc_center` 表示储罐**几何中心**（筒体+封头组装体中心）。立式罐罐底世界坐标 = `wc_center.z - (shell_height/2 + head_height)`（`head_height`：半球 = shell_radius，椭球 = shell_radius×head_ratio）。端口若省略 `wc`，由 `direction` 与几何自动推导；底部 -Z 端口根在罐底表面。编排管线时须保证罐底与喷嘴不插入下方弯头/直管：喷嘴末端应与 segments 首段管件 `wc_start` 一致，故 `wc_center.z` = 首段 `wc_start.z` + nozzle_length + shell_height/2 + head_height。
 
+#### `type: "Instrument"`（在线仪表）
+
+```json
+"geometry": {
+  "face_axis":        "+X",
+  "dial_radius_m":    0.035,
+  "dial_depth_m":     0.016,
+  "socket_radius_m":  0.007,
+  "socket_length_m":  0.03
+}
+```
+
+| 字段                   | 类型        | 必需  | 说明                                                 |
+| -------------------- | --------- | --- | -------------------------------------------------- |
+| `instrument_kind`    | string    | ✅   | `"thermometer"` \| `"pressure_gauge"`             |
+| `wc_center`          | [float×3] | ✅   | 仪表几何中心世界坐标                                         |
+| `geometry.face_axis` | string    | ❌   | 仪表朝向，默认 `"+X"`                                     |
+| `geometry.*_m`       | float     | ❌   | 可选几何尺寸参数（米），省略时使用生成层默认值                            |
+
+> **连接约定：** 仪表通常提供一个信号端口，`ports[].port_id` 必须与路由层 `InlineInstrument.id` 对齐（如 `inst_TI101`），以便 `segments[].from_port` 正确引用。
+
 ### 4.3 `port` 对象
 
 设备接口点，是管线段与设备的连接锚点。
@@ -217,7 +238,7 @@
 | 字段                 | 类型        | 必需  | 说明                                            |
 | ------------------ | --------- | --- | --------------------------------------------- |
 | `port_id`          | string    | ✅   | 全局唯一，被 `segments[].from_port` / `to_port` 引用  |
-| `role`             | string    | ❌   | `"inlet"` | `"outlet"` | `"vent"` | `"drain"` |
+| `role`             | string    | ❌   | `"inlet"` \| `"outlet"` \| `"vent"` \| `"drain"` \| `"signal"` |
 | `vc`               | [int×3]   | ✅   | 接口所在体素坐标                                      |
 | `wc`               | [float×3] | ✅   | 接口世界坐标（bpy 直接使用）                              |
 | `direction`        | string    | ✅   | 接管朝外方向，见[枚举值速查表](#7-枚举值速查表)                   |
@@ -360,6 +381,23 @@
 
 ---
 
+#### `type: "SignalLine"`（仪表信号线直段）
+
+`SignalLine` 字段与 `Pipe` 一致，用于表达小口径信号/脉冲引压管。生成层不会为其自动添加法兰。
+
+```json
+{
+  "comp_id":  "seg_sig_TI101_c00",
+  "type":     "SignalLine",
+  "wc_start": [0.45, 2.2, 0.3],
+  "wc_end":   [0.95, 2.2, 0.3],
+  "axis":     "+X",
+  "length_m": 0.5
+}
+```
+
+---
+
 #### `type: "Elbow"`（弯头）
 
 ```json
@@ -488,7 +526,9 @@
 | 值           | 所属块                   | 说明  |
 | ----------- | --------------------- | --- |
 | `"Tank"`    | `assets`              | 储罐  |
+| `"Instrument"` | `assets`           | 在线仪表（温度计/压力表） |
 | `"Pipe"`    | `segments.components` | 直管  |
+| `"SignalLine"` | `segments.components` | 仪表信号线直段 |
 | `"Elbow"`   | `segments.components` | 弯头  |
 | `"Valve"`   | `segments.components` | 阀门  |
 | `"Reducer"` | `segments.components` | 变径管 |
@@ -735,3 +775,9 @@
 
 
 生成层在收到 JSON 后，首先检查 `meta.protocol_version` 的主版本号是否匹配，不匹配则**立即抛出异常**拒绝执行。
+
+### 9.7 仪表与信号线连接约定
+
+- 信号线段推荐 `from_port = 仪表port_id`、`to_port = 被测设备口port_id`。
+- 对应关系示例：`InlineInstrument.id = inst_TI101` → `assets[].id = inst_TI101` 且 `assets[].ports[].port_id = inst_TI101`。
+- 小口径信号线（如 `nominal_diameter=0.006`）可使用 `SignalLine` + `Elbow` 组合，生成层按小管径截面规则构建几何。

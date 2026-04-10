@@ -43,7 +43,7 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-from chemical_piping_lib.config import PIPE_HOLLOW, RUNTIME, get_dn_spec
+from chemical_piping_lib.config import PIPE_HOLLOW, RUNTIME, resolve_pipe_cross_section
 from chemical_piping_lib.utils.bmesh_utils import (
     bm_to_object,
     make_cylinder,
@@ -96,7 +96,7 @@ class Pipe(PipingAsset):
 
         # Resolve pipe geometry from DN spec.
         nominal_d  = float(spec["nominal_diameter"])
-        dn_spec    = get_dn_spec(nominal_d)
+        dn_spec    = resolve_pipe_cross_section(nominal_d)
         self.outer_radius: float = dn_spec["outer_diameter"] / 2.0
         self.wall_thickness: float = dn_spec["wall_thickness"]
 

@@ -20,6 +20,7 @@ class GenerationPathComponentConverter:
         path: List[Vc],
         segment_id: str,
         nominal_diameter_m: float,
+        straight_type: str = "Pipe",
     ) -> List[Dict[str, object]]:
         if len(path) < 2:
             return []
@@ -51,6 +52,7 @@ class GenerationPathComponentConverter:
                     end=end,
                     axis=axis,
                     length_m=length_m,
+                    straight_type=straight_type,
                 )
             )
             if j < len(path) - 1:
@@ -82,10 +84,11 @@ class GenerationPathComponentConverter:
         end: Vc,
         axis: str,
         length_m: float,
+        straight_type: str,
     ) -> Dict[str, object]:
         return {
             "comp_id": comp_id,
-            "type": "Pipe",
+            "type": straight_type,
             "vc_start": list(start),
             "vc_end": list(end),
             "wc_start": VoxelGeometryMaps.vc_to_wc(start, self._config),
