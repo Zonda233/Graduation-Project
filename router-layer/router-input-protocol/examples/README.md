@@ -8,3 +8,5 @@
 | [instrument_process_signal.json](instrument_process_signal.json) | 端到端仪表场景：两台设备间工艺线 + 温度计/压力表信号线；`InlineInstrument.properties.instrument_kind` 与 `lines[].service="instrument_signal"` 的组合示例。 |
 
 使用方式：Router 或校验脚本将 JSON 路径作为输入，解析后构图、执行寻路或规则检查；输出为生成层协议时可对照 `chemical-piping-lib/examples/` 下示例。
+
+可选体素预览：`python router-layer/tools/voxel_scene_preview.py --json router-layer/output/router_output_instrument_process_signal.json`（需 `matplotlib`、`numpy`）。

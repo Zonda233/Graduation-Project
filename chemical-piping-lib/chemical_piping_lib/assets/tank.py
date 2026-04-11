@@ -295,8 +295,15 @@ class Tank(PipingAsset):
             port_id  = port["port_id"]
             direction: str = port["direction"]
             nominal_d: float = float(port.get("nominal_diameter", 0.05))
+            logical_port_only = bool(port.get("logical_port_only", False))
 
             local_root = self._port_local_offset(port)
+            if logical_port_only:
+                if "wc" in port:
+                    self._port_positions[port_id] = Vector(port["wc"])
+                else:
+                    self._port_positions[port_id] = self.world_center + local_root
+                continue
 
             dn_spec    = get_dn_spec(nominal_d)
             nozzle_r   = dn_spec["outer_diameter"] / 2.0

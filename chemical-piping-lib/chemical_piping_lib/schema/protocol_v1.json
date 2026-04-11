@@ -93,6 +93,7 @@
                 "direction": { "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] },
                 "nominal_diameter": { "type": "number", "minimum": 1e-6 },
                 "nozzle_length_m": { "type": "number", "minimum": 0 },
+                "logical_port_only": { "type": "boolean" },
                 "flange_spec": { "type": "object" }
               }
             }

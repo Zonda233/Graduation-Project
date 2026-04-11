@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 from .ClearanceAwareShortestPathFinder import ClearanceAwareShortestPathFinder
+from .EquipmentPortShellSnapper import EquipmentPortShellSnapper
 from .INodePlacer import INodePlacer
 from .IPathFinder import IPathFinder
 from .IRouterService import IRouterService
@@ -26,10 +27,12 @@ class DefaultRouterService(IRouterService):
     path_finder: IPathFinder = field(default_factory=ClearanceAwareShortestPathFinder)
     multi_line_router: IMultiLineRouter = field(default_factory=SequentialMultiLineRouter)
     json_emitter: JsonEmitter = field(default_factory=MinimalJsonEmitter)
+    shell_snapper: EquipmentPortShellSnapper = field(default_factory=EquipmentPortShellSnapper)
 
     def route(self, router_input: Dict[str, object]) -> Dict[str, object]:
         typed_input = self.parser.parse(router_input)
         placed_nodes = self.node_placer.place_nodes(typed_input, self.config)
+        self.shell_snapper.apply(typed_input, placed_nodes, self.config)
         nx, ny, nz = self.config.grid_dimensions
         grid = Grid3D(nx=nx, ny=ny, nz=nz, occupied=set())
         line_routes = self.multi_line_router.route_all_lines(

@@ -40,22 +40,30 @@
     {
       "id": "port_tank_A_tap_TI101",
       "type": "EquipmentPort",
-      "role": "outlet",
+      "role": "signal",
       "label": "TANK-A 温度取样口",
       "equipment_ref": "tank_A",
       "location_2d": { "x": 0.28, "y": 0.66, "space": "diagram_2d" },
       "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 }
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "properties": {
+        "port_kind": "instrument_tap",
+        "nominal_diameter_mm": 6
+      }
     },
     {
       "id": "port_tank_A_tap_PI102",
       "type": "EquipmentPort",
-      "role": "outlet",
+      "role": "signal",
       "label": "TANK-A 压力取样口",
       "equipment_ref": "tank_A",
       "location_2d": { "x": 0.28, "y": 0.34, "space": "diagram_2d" },
       "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 }
+      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "properties": {
+        "port_kind": "instrument_tap",
+        "nominal_diameter_mm": 6
+      }
     },
     {
       "id": "inst_TI101",

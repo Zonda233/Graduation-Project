@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Dict, List, Set
 from dataclasses import dataclass
 
@@ -129,7 +130,7 @@ class PlaceholderTankAssetBuilder:
         voxel_origin, voxel_extent = geometry.compute_voxel_origin_and_extent(center_voxel)
 
         # 构建端口 JSON
-        ports_json = [self._build_port_json(p) for p in port_infos]
+        ports_json = [self._build_port_json(p, wc_center) for p in port_infos]
 
         # 构建几何字典
         geometry_dict = {
@@ -153,13 +154,67 @@ class PlaceholderTankAssetBuilder:
         }
 
     @staticmethod
-    def _build_port_json(port_info: EquipmentPortInfo) -> Dict[str, object]:
+    def _build_port_json(
+        port_info: EquipmentPortInfo,
+        tank_wc_center: list[float],
+    ) -> Dict[str, object]:
         """将单个端口信息转换为 JSON 格式"""
-        return {
+        role = (port_info.node_spec.role or "outlet")
+        is_signal = PlaceholderTankAssetBuilder._is_signal_port(port_info.node_spec)
+        nominal_diameter = PlaceholderTankAssetBuilder._resolve_nominal_diameter_m(
+            port_info.node_spec,
+            is_signal,
+        )
+        direction = PlaceholderTankAssetBuilder._resolve_port_direction(
+            port_wc=port_info.placed_node.wc,
+            tank_wc_center=tank_wc_center,
+            is_signal=is_signal,
+        )
+        port_json = {
             "port_id": port_info.port_id,
-            "role": port_info.node_spec.role or "outlet",
+            "role": role,
             "vc": list(port_info.placed_node.vc),
             "wc": list(port_info.placed_node.wc),
-            "direction": "-Z",
-            "nominal_diameter": 0.1,
+            "direction": direction,
+            "nominal_diameter": nominal_diameter,
         }
+        if is_signal:
+            port_json["logical_port_only"] = True
+        return port_json
+
+    @staticmethod
+    def _is_signal_port(node: NodeSpec) -> bool:
+        role = (node.role or "").strip().lower()
+        if role == "signal":
+            return True
+        port_kind = str(node.properties.get("port_kind", "")).strip().lower()
+        if port_kind == "instrument_tap":
+            return True
+        return bool(node.properties.get("snap_to_shell"))
+
+    @staticmethod
+    def _resolve_nominal_diameter_m(node: NodeSpec, is_signal: bool) -> float:
+        raw = node.properties.get("nominal_diameter_mm")
+        try:
+            mm = float(raw)
+        except (TypeError, ValueError):
+            mm = 6.0 if is_signal else 100.0
+        if mm <= 0.0:
+            mm = 6.0 if is_signal else 100.0
+        return mm / 1000.0
+
+    @staticmethod
+    def _resolve_port_direction(
+        port_wc: tuple[float, float, float],
+        tank_wc_center: list[float],
+        is_signal: bool,
+    ) -> str:
+        if not is_signal:
+            return "-Z"
+        dx = float(port_wc[0] - tank_wc_center[0])
+        dy = float(port_wc[1] - tank_wc_center[1])
+        if math.hypot(dx, dy) < 1e-9:
+            return "+X"
+        if abs(dx) >= abs(dy):
+            return "+X" if dx >= 0.0 else "-X"
+        return "+Y" if dy >= 0.0 else "-Y"

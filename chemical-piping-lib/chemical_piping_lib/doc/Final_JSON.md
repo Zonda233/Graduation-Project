@@ -243,6 +243,7 @@
 | `wc`               | [float×3] | ✅   | 接口世界坐标（bpy 直接使用）                              |
 | `direction`        | string    | ✅   | 接管朝外方向，见[枚举值速查表](#7-枚举值速查表)                   |
 | `nominal_diameter` | float     | ✅   | 公称直径（米），如 `0.1` 表示 DN100                      |
+| `logical_port_only`| bool      | ❌   | 若为 `true`，仅登记连接逻辑端口，不生成可见喷嘴几何                    |
 | `flange_spec`      | object    | ❌   | 接管法兰规格，省略时继承所属管线段的 `spec`                     |
 
 
@@ -781,3 +782,4 @@
 - 信号线段推荐 `from_port = 仪表port_id`、`to_port = 被测设备口port_id`。
 - 对应关系示例：`InlineInstrument.id = inst_TI101` → `assets[].id = inst_TI101` 且 `assets[].ports[].port_id = inst_TI101`。
 - 小口径信号线（如 `nominal_diameter=0.006`）可使用 `SignalLine` + `Elbow` 组合，生成层按小管径截面规则构建几何。
+- 若取压口只需逻辑连接且不希望出现“悬空喷嘴”，可在该端口设置 `logical_port_only=true`，并由路由层先将端口吸附到设备壳面后再寻路。
