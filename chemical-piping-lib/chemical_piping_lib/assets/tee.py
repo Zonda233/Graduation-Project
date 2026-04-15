@@ -137,7 +137,7 @@ class Tee(PipingAsset):
         branch_dir = axis_to_vec(self.branch_axis)
 
         # --- 1. Main run cylinder (centred at wc_center) --------------
-        run_length = main_od * _RUN_LENGTH_FACTOR
+        run_length = min(main_od * _RUN_LENGTH_FACTOR, float(RUNTIME.voxel_size))
         bm_run = bmesh.new()
         make_cylinder(
             bm_run,
@@ -157,7 +157,7 @@ class Tee(PipingAsset):
         run_obj.location = self.wc_center.copy()
 
         # --- 2. Branch cylinder (centred at wc_center) ----------------
-        branch_length = main_od * _BRANCH_LENGTH_FACTOR
+        branch_length = min(main_od * _BRANCH_LENGTH_FACTOR, float(RUNTIME.voxel_size))
         bm_branch = bmesh.new()
         make_cylinder(
             bm_branch,

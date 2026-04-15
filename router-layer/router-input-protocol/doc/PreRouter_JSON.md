@@ -74,7 +74,7 @@
 | `location_2d` | object | ❌ | P&ID 上近似位置，如 `{ "x", "y", "space": "diagram_2d" }` |
 | `placement_hint` | object | ❌ | 放置提示（NodePlacer 使用）：如 `z_layers`、`anchor_policy`、`direction_preferred` |
 | `bbox_hint` | object | ❌ | 体素占用提示：如 `extent_voxels:[ex,ey,ez]`、`clearance_voxels`（粗粒度 AABB） |
-| `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；当 `type=InlineInstrument` 时可携带 `instrument_kind`（`thermometer`/`pressure_gauge`）与 `nominal_diameter_mm` |
+| `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；`InlineInstrument` 可携带 `instrument_kind`/`nominal_diameter_mm`；`EquipmentPort` 可携带 `asset_type="custom_module"`、`port_local_wc`（局部端口坐标）、`port_kind` |
 | `extra` | object | ❌ | 扩展 |
 
 **node.type 枚举（建议）：** `Equipment` | `EquipmentPort` | `InlineInstrument` | `Junction` | `Boundary`

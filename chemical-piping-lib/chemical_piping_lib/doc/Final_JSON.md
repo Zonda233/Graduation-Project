@@ -213,6 +213,24 @@
 
 > **连接约定：** 仪表通常提供一个信号端口，`ports[].port_id` 必须与路由层 `InlineInstrument.id` 对齐（如 `inst_TI101`），以便 `segments[].from_port` 正确引用。
 
+#### `type: "CustomModule"`（未知/自定义模块）
+
+```json
+"geometry": {
+  "shape": "box",
+  "size_xyz_m": [0.6, 0.4, 0.4],
+  "category": "custom_unknown"
+}
+```
+
+| 字段                  | 类型        | 必需  | 说明                                                     |
+| ------------------- | --------- | --- | ------------------------------------------------------ |
+| `wc_center`         | [float×3] | ✅   | 模块几何中心世界坐标                                             |
+| `voxel_extent`      | [int×3]   | ✅   | 模块在体素空间的包围盒尺寸（格数）                                      |
+| `geometry.shape`    | string    | ✅   | 固定 `"box"`                                            |
+| `geometry.size_xyz_m` | [float×3] | ❌ | 模块实际尺寸（米）；缺省可由 `voxel_extent * voxel_size` 推导          |
+| `geometry.category` | string    | ❌   | 自定义分类标记（如 unknown/utility/package）                     |
+
 ### 4.3 `port` 对象
 
 设备接口点，是管线段与设备的连接锚点。
@@ -241,7 +259,9 @@
 | `role`             | string    | ❌   | `"inlet"` \| `"outlet"` \| `"vent"` \| `"drain"` \| `"signal"` |
 | `vc`               | [int×3]   | ✅   | 接口所在体素坐标                                      |
 | `wc`               | [float×3] | ✅   | 接口世界坐标（bpy 直接使用）                              |
+| `local_wc`         | [float×3] | ❌   | 相对资产中心的局部坐标偏移（用于 CustomModule 等可重定位设备）        |
 | `direction`        | string    | ✅   | 接管朝外方向，见[枚举值速查表](#7-枚举值速查表)                   |
+| `port_kind`        | string    | ❌   | 端口类型标记（如 `process`、`signal`、`utility`）         |
 | `nominal_diameter` | float     | ✅   | 公称直径（米），如 `0.1` 表示 DN100                      |
 | `logical_port_only`| bool      | ❌   | 若为 `true`，仅登记连接逻辑端口，不生成可见喷嘴几何                    |
 | `flange_spec`      | object    | ❌   | 接管法兰规格，省略时继承所属管线段的 `spec`                     |
@@ -528,6 +548,7 @@
 | ----------- | --------------------- | --- |
 | `"Tank"`    | `assets`              | 储罐  |
 | `"Instrument"` | `assets`           | 在线仪表（温度计/压力表） |
+| `"CustomModule"` | `assets`         | 自定义模块（长方体） |
 | `"Pipe"`    | `segments.components` | 直管  |
 | `"SignalLine"` | `segments.components` | 仪表信号线直段 |
 | `"Elbow"`   | `segments.components` | 弯头  |

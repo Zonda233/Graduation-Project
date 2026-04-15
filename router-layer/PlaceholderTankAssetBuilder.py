@@ -85,7 +85,10 @@ class PlaceholderTankAssetBuilder:
         for eid, port_infos in ports_by_equipment.items():
             if eid in existing_equipment:
                 continue
-            asset = self._build_asset(eid, port_infos, geometry)
+            if self._is_custom_module_group(port_infos):
+                asset = self._build_custom_module_asset(eid, port_infos, geometry)
+            else:
+                asset = self._build_asset(eid, port_infos, geometry)
             if asset:
                 assets.append(asset)
 
@@ -152,6 +155,155 @@ class PlaceholderTankAssetBuilder:
             "geometry": geometry_dict,
             "ports": ports_json,
         }
+
+    def _build_custom_module_asset(
+        self,
+        equipment_id: str,
+        port_infos: List[EquipmentPortInfo],
+        geometry: GeometryHelper,
+    ) -> Dict[str, object] | None:
+        if not port_infos:
+            return None
+
+        wc_center = self._resolve_custom_module_center(port_infos)
+        center_vc = geometry.world_to_voxel([wc_center[0], wc_center[1], wc_center[2]])
+        center_vc_wc = [
+            round(geometry.origin_wc[i] + (center_vc[i] + 0.5) * geometry.voxel_size, 6)
+            for i in range(3)
+        ]
+        module_wc_center = (center_vc_wc[0], center_vc_wc[1], center_vc_wc[2])
+        voxel_extent = self._resolve_custom_module_extent(port_infos)
+        voxel_origin = [
+            center_vc[0] - voxel_extent[0] // 2,
+            center_vc[1] - voxel_extent[1] // 2,
+            max(0, center_vc[2] - voxel_extent[2] // 2),
+        ]
+
+        ports_json = [
+            self._build_custom_module_port_json(port_info, module_wc_center, geometry)
+            for port_info in port_infos
+        ]
+        size_xyz_m = [round(v * geometry.voxel_size, 6) for v in voxel_extent]
+        return {
+            "id": equipment_id,
+            "type": "CustomModule",
+            "display_name": f"Custom {equipment_id}",
+            "voxel_origin": voxel_origin,
+            "voxel_extent": voxel_extent,
+            "wc_center": [round(v, 6) for v in module_wc_center],
+            "material_id": "mat_carbon_steel",
+            "geometry": {
+                "shape": "box",
+                "size_xyz_m": size_xyz_m,
+                "category": "custom_unknown",
+            },
+            "ports": ports_json,
+        }
+
+    @staticmethod
+    def _is_custom_module_group(port_infos: List[EquipmentPortInfo]) -> bool:
+        for port_info in port_infos:
+            asset_type = str(port_info.node_spec.properties.get("asset_type", "")).strip().lower()
+            module_kind = str(port_info.node_spec.properties.get("module_kind", "")).strip().lower()
+            if asset_type == "custom_module" or module_kind == "custom":
+                return True
+        return False
+
+    @staticmethod
+    def _resolve_custom_module_center(
+        port_infos: List[EquipmentPortInfo],
+    ) -> tuple[float, float, float]:
+        inferred_centers: List[tuple[float, float, float]] = []
+        for port_info in port_infos:
+            local_wc = port_info.node_spec.properties.get("port_local_wc")
+            if not (isinstance(local_wc, list) and len(local_wc) == 3):
+                continue
+            px, py, pz = port_info.placed_node.wc
+            inferred_centers.append(
+                (
+                    float(px - float(local_wc[0])),
+                    float(py - float(local_wc[1])),
+                    float(pz - float(local_wc[2])),
+                )
+            )
+        if inferred_centers:
+            n = float(len(inferred_centers))
+            return (
+                sum(c[0] for c in inferred_centers) / n,
+                sum(c[1] for c in inferred_centers) / n,
+                sum(c[2] for c in inferred_centers) / n,
+            )
+
+        n = float(len(port_infos))
+        return (
+            sum(p.placed_node.wc[0] for p in port_infos) / n,
+            sum(p.placed_node.wc[1] for p in port_infos) / n,
+            sum(p.placed_node.wc[2] for p in port_infos) / n,
+        )
+
+    @staticmethod
+    def _resolve_custom_module_extent(port_infos: List[EquipmentPortInfo]) -> list[int]:
+        for port_info in port_infos:
+            raw = port_info.node_spec.properties.get("module_voxel_extent")
+            if isinstance(raw, list) and len(raw) == 3:
+                ex = max(1, int(raw[0]))
+                ey = max(1, int(raw[1]))
+                ez = max(1, int(raw[2]))
+                return [ex, ey, ez]
+        return [3, 2, 2]
+
+    @staticmethod
+    def _build_custom_module_port_json(
+        port_info: EquipmentPortInfo,
+        module_center_wc: tuple[float, float, float],
+        geometry: GeometryHelper,
+    ) -> Dict[str, object]:
+        props = port_info.node_spec.properties
+        wc = [
+            float(port_info.placed_node.wc[0]),
+            float(port_info.placed_node.wc[1]),
+            float(port_info.placed_node.wc[2]),
+        ]
+        local_wc = [
+            wc[0] - module_center_wc[0],
+            wc[1] - module_center_wc[1],
+            wc[2] - module_center_wc[2],
+        ]
+        vc = list(geometry.world_to_voxel(wc))
+
+        direction = (
+            port_info.node_spec.placement_hint.direction_preferred
+            or PlaceholderTankAssetBuilder._infer_direction_from_local(local_wc)
+        )
+        nominal_d = PlaceholderTankAssetBuilder._resolve_nominal_diameter_m(
+            port_info.node_spec,
+            is_signal=(str(props.get("port_kind", "")).strip().lower() == "signal"),
+        )
+        port_kind = str(props.get("port_kind", port_info.node_spec.role or "process"))
+        return {
+            "port_id": port_info.port_id,
+            "role": port_info.node_spec.role or "outlet",
+            "port_kind": port_kind,
+            "local_wc": [round(v, 6) for v in local_wc],
+            "vc": vc,
+            "wc": [round(v, 6) for v in wc],
+            "direction": direction,
+            "nominal_diameter": nominal_d,
+        }
+
+    @staticmethod
+    def _infer_direction_from_local(local_wc: list[float]) -> str:
+        dx = float(local_wc[0])
+        dy = float(local_wc[1])
+        dz = float(local_wc[2])
+        ax = abs(dx)
+        ay = abs(dy)
+        az = abs(dz)
+        if ax >= ay and ax >= az:
+            return "+X" if dx >= 0.0 else "-X"
+        if ay >= ax and ay >= az:
+            return "+Y" if dy >= 0.0 else "-Y"
+        return "+Z" if dz >= 0.0 else "-Z"
 
     @staticmethod
     def _build_port_json(

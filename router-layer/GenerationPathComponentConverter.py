@@ -22,6 +22,7 @@ class GenerationPathComponentConverter:
         nominal_diameter_m: float,
         straight_type: str = "Pipe",
     ) -> List[Dict[str, object]]:
+        path = self._remove_immediate_backtracks(path)
         if len(path) < 2:
             return []
         components: List[Dict[str, object]] = []
@@ -76,6 +77,18 @@ class GenerationPathComponentConverter:
     @staticmethod
     def _delta(a: Vc, b: Vc) -> Vc:
         return (b[0] - a[0], b[1] - a[1], b[2] - a[2])
+
+    @staticmethod
+    def _remove_immediate_backtracks(path: List[Vc]) -> List[Vc]:
+        if len(path) < 3:
+            return list(path)
+        simplified: List[Vc] = []
+        for vc in path:
+            if len(simplified) >= 2 and vc == simplified[-2]:
+                simplified.pop()
+                continue
+            simplified.append(vc)
+        return simplified
 
     def _build_pipe_component(
         self,

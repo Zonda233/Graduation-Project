@@ -71,7 +71,7 @@
         "additionalProperties": true,
         "properties": {
           "id": { "type": "string", "minLength": 1 },
-          "type": { "enum": ["Tank", "Instrument"] },
+          "type": { "enum": ["Tank", "Instrument", "CustomModule"] },
           "instrument_kind": { "enum": ["thermometer", "pressure_gauge"] },
           "display_name": { "type": "string" },
           "voxel_origin": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
@@ -91,6 +91,8 @@
                 "vc": { "type": "array", "items": { "type": "integer" }, "minItems": 3, "maxItems": 3 },
                 "wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
                 "direction": { "enum": ["+X", "-X", "+Y", "-Y", "+Z", "-Z"] },
+                "port_kind": { "type": "string" },
+                "local_wc": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
                 "nominal_diameter": { "type": "number", "minimum": 1e-6 },
                 "nozzle_length_m": { "type": "number", "minimum": 0 },
                 "logical_port_only": { "type": "boolean" },
@@ -134,6 +136,23 @@
                     "dial_depth_m": { "type": "number", "minimum": 1e-6 },
                     "socket_radius_m": { "type": "number", "minimum": 1e-6 },
                     "socket_length_m": { "type": "number", "minimum": 1e-6 }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "type": { "const": "CustomModule" } }, "required": ["type"] },
+            "then": {
+              "required": ["wc_center", "voxel_extent"],
+              "properties": {
+                "geometry": {
+                  "type": "object",
+                  "required": ["shape"],
+                  "properties": {
+                    "shape": { "const": "box" },
+                    "size_xyz_m": { "type": "array", "items": { "type": "number", "minimum": 1e-6 }, "minItems": 3, "maxItems": 3 },
+                    "category": { "type": "string" }
                   }
                 }
               }

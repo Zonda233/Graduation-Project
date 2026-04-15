@@ -68,9 +68,11 @@ class PipeAndTeeGeometryTrimmer:
                 continue
             axis = str(p["axis"])
             if port_id.endswith("_branch"):
-                offset = self._config.tee_branch_half_length_factor * main_od
+                offset_raw = self._config.tee_branch_half_length_factor * main_od
             else:
-                offset = self._config.tee_run_half_length_factor * main_od
+                offset_raw = self._config.tee_run_half_length_factor * main_od
+            # Keep trimmer offset consistent with Tee asset build() envelope.
+            offset = min(offset_raw, self._config.voxel_size / 2.0)
             return VoxelGeometryMaps.shift_wc(wc_center, axis, offset)
         return None
 

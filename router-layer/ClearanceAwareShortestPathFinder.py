@@ -139,6 +139,9 @@ class ClearanceAwareShortestPathFinder(IPathFinder):
             if not grid.is_free(last_step):
                 return []
             mid = self._shortest_segment_with_clearance_tiebreak(grid, start, last_step)
+            if mid and goal in mid[:-1]:
+                constrained_grid = grid.with_forbidden([goal]).with_allowed([start, last_step])
+                mid = self._shortest_segment_with_clearance_tiebreak(constrained_grid, start, last_step)
             return mid + [goal] if mid else []
         return self._shortest_segment_with_clearance_tiebreak(grid, start, goal)
 

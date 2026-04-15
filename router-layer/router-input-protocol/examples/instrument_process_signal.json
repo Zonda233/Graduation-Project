@@ -22,30 +22,42 @@
       "type": "EquipmentPort",
       "role": "outlet",
       "label": "TANK-A 出口",
-      "equipment_ref": "tank_A",
-      "location_2d": { "x": 0.20, "y": 0.50, "space": "diagram_2d" },
-      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "-Z" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 1 }
+      "equipment_ref": "tank_A"           
     },
     {
       "id": "port_tank_B_inlet",
       "type": "EquipmentPort",
       "role": "inlet",
       "label": "TANK-B 入口",
-      "equipment_ref": "tank_B",
-      "location_2d": { "x": 0.80, "y": 0.50, "space": "diagram_2d" },
-      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "-Z" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 1 }
+      "equipment_ref": "tank_B"            
+    },
+    {
+      "id": "junc_process_branch",
+      "type": "Junction",
+      "role": "branch_point",
+      "label": "主干分支三通"    
+    },
+    {
+      "id": "port_custom_module_01_in",
+      "type": "EquipmentPort",
+      "role": "inlet",
+      "label": "CustomModule 入口",
+      "equipment_ref": "custom_module_01",  
+      "properties": {
+        "asset_type": "custom_module",
+        "module_kind": "custom",
+        "module_voxel_extent": [3, 2, 2],
+        "port_local_wc": [0.0, 0.0, 0.0],
+        "port_kind": "process",
+        "nominal_diameter_mm": 80
+      }
     },
     {
       "id": "port_tank_A_tap_TI101",
       "type": "EquipmentPort",
       "role": "signal",
       "label": "TANK-A 温度取样口",
-      "equipment_ref": "tank_A",
-      "location_2d": { "x": 0.28, "y": 0.66, "space": "diagram_2d" },
-      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "equipment_ref": "tank_A", 
       "properties": {
         "port_kind": "instrument_tap",
         "nominal_diameter_mm": 6
@@ -56,10 +68,7 @@
       "type": "EquipmentPort",
       "role": "signal",
       "label": "TANK-A 压力取样口",
-      "equipment_ref": "tank_A",
-      "location_2d": { "x": 0.28, "y": 0.34, "space": "diagram_2d" },
-      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "equipment_ref": "tank_A",      
       "properties": {
         "port_kind": "instrument_tap",
         "nominal_diameter_mm": 6
@@ -69,10 +78,7 @@
       "id": "inst_TI101",
       "type": "InlineInstrument",
       "label": "TI-101",
-      "pid_tag": "TI-101",
-      "location_2d": { "x": 0.08, "y": 0.66, "space": "diagram_2d" },
-      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "+X" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "pid_tag": "TI-101",      
       "properties": {
         "instrument_kind": "thermometer",
         "nominal_diameter_mm": 6
@@ -82,10 +88,7 @@
       "id": "inst_PI102",
       "type": "InlineInstrument",
       "label": "PI-102",
-      "pid_tag": "PI-102",
-      "location_2d": { "x": 0.08, "y": 0.34, "space": "diagram_2d" },
-      "placement_hint": { "z_layers": [1], "anchor_policy": "near_seed", "direction_preferred": "+X" },
-      "bbox_hint": { "extent_voxels": [1, 1, 1], "clearance_voxels": 0 },
+      "pid_tag": "PI-102",      
       "properties": {
         "instrument_kind": "pressure_gauge",
         "nominal_diameter_mm": 6
@@ -98,9 +101,20 @@
       "tag": "PROC-A-B-DN100",
       "from_node": "port_tank_A_outlet",
       "to_node": "port_tank_B_inlet",
+      "via_nodes": ["junc_process_branch"],
       "service": "CoolingWater",
       "fluid": "Water",
       "nominal_diameter_mm": 100,
+      "with_flanges": true
+    },
+    {
+      "id": "L_branch_to_custom",
+      "tag": "PROC-BRANCH-DN80",
+      "from_node": "junc_process_branch",
+      "to_node": "port_custom_module_01_in",
+      "service": "CoolingWater",
+      "fluid": "Water",
+      "nominal_diameter_mm": 80,
       "with_flanges": true
     },
     {
@@ -125,10 +139,10 @@
     }
   ],
   "constraints": {
-    "spatial_rules": {
-      "default_clearance_voxels": 0,
-      "max_search_radius_voxels": 5,
-      "default_z_layers": [0, 1]
+    "routing_rules": {
+      "min_spacing_between_parallel_lines_m": 0.05,
+      "min_clearance_to_floor_m": 0.2,
+      "max_elbows_per_line": 12
     }
   }
 }

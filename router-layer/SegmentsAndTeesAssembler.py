@@ -234,7 +234,28 @@ class SegmentsAndTeesAssembler:
                 "run_b": run_b_axis or TEE_DEFAULT_AXES["run_b"],
                 "branch": branch_axis or TEE_DEFAULT_AXES["branch"],
             }
+            tee_axes[tee_id] = self._normalize_tee_axes(tee_axes[tee_id])
         return tee_axes
+
+    @staticmethod
+    def _normalize_tee_axes(axes: Dict[str, str]) -> Dict[str, str]:
+        opposite = {
+            "+X": "-X", "-X": "+X",
+            "+Y": "-Y", "-Y": "+Y",
+            "+Z": "-Z", "-Z": "+Z",
+        }
+        run_a = axes.get("run_a", TEE_DEFAULT_AXES["run_a"])
+        run_b = axes.get("run_b", TEE_DEFAULT_AXES["run_b"])
+        branch = axes.get("branch", TEE_DEFAULT_AXES["branch"])
+
+        if run_b != opposite.get(run_a):
+            run_b = opposite.get(run_a, TEE_DEFAULT_AXES["run_b"])
+        if branch in {run_a, run_b}:
+            for candidate in ("+Y", "-Y", "+Z", "-Z", "+X", "-X"):
+                if candidate not in {run_a, run_b}:
+                    branch = candidate
+                    break
+        return {"run_a": run_a, "run_b": run_b, "branch": branch}
 
     def _build_tee_joints(
         self,

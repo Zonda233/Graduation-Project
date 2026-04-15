@@ -21,4 +21,5 @@ Public classes
    cap.Cap
    instrument.Instrument
    signal_line.SignalLine
+   custom_module.CustomModule
 """

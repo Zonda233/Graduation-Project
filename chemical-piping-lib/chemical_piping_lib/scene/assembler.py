@@ -25,7 +25,6 @@ by the routing layer before the JSON is produced.
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -113,6 +112,8 @@ def _get_asset_class(type_str: str):
         from chemical_piping_lib.assets.signal_line import SignalLine; return SignalLine
     if type_str == "Instrument":
         from chemical_piping_lib.assets.instrument import Instrument; return Instrument
+    if type_str == "CustomModule":
+        from chemical_piping_lib.assets.custom_module import CustomModule; return CustomModule
     raise ValueError(f"Unknown asset type: {type_str!r}")
 
 

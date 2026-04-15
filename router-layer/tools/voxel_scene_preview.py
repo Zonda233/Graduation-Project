@@ -25,16 +25,20 @@ from matplotlib.patches import Patch
 RGBA = tuple[float, float, float, float]
 
 COLOR_TANK: RGBA = (0.18, 0.55, 0.95, 0.22)
+COLOR_CUSTOM_MODULE: RGBA = (0.08, 0.78, 0.78, 0.28)
 COLOR_INSTRUMENT: RGBA = (0.15, 0.78, 0.32, 0.58)
 COLOR_PIPE: RGBA = (0.95, 0.68, 0.20, 0.35)
 COLOR_SIGNAL_LINE: RGBA = (0.97, 0.28, 0.22, 0.68)
 COLOR_ELBOW: RGBA = (0.56, 0.34, 0.82, 0.68)
+COLOR_TEE: RGBA = (0.86, 0.86, 0.22, 0.88)
 
 PRIORITY_TANK = 1
+PRIORITY_CUSTOM_MODULE = 2
 PRIORITY_PIPE = 3
 PRIORITY_SIGNAL = 4
 PRIORITY_INSTRUMENT = 5
 PRIORITY_ELBOW = 6
+PRIORITY_TEE = 7
 
 
 def _parse_args() -> argparse.Namespace:
@@ -67,6 +71,7 @@ def _paint_voxel(
         return
     x, y, z = vc
     if level < priority[x, y, z]:
+    #    print(f"[Warning] level < priority[x, y, z] at {vc}: {level} < {priority[x, y, z]}")
         return
     filled[x, y, z] = True
     colors[x, y, z] = color
@@ -110,9 +115,10 @@ def main() -> None:
     colors = np.empty(dims, dtype=object)
     priority = np.zeros(dims, dtype=np.int16)
 
-    # Tanks: paint placeholder bounding boxes.
+    # Tanks / custom modules: paint placeholder bounding boxes.
     for asset in data.get("assets", []):
-        if asset.get("type") != "Tank":
+        atype = str(asset.get("type", ""))
+        if atype not in {"Tank", "CustomModule"}:
             continue
         origin_v = asset.get("voxel_origin")
         extent_v = asset.get("voxel_extent")
@@ -120,10 +126,12 @@ def main() -> None:
             continue
         ox, oy, oz = (int(origin_v[0]), int(origin_v[1]), int(origin_v[2]))
         ex, ey, ez = (int(extent_v[0]), int(extent_v[1]), int(extent_v[2]))
+        color = COLOR_CUSTOM_MODULE if atype == "CustomModule" else COLOR_TANK
+        level = PRIORITY_CUSTOM_MODULE if atype == "CustomModule" else PRIORITY_TANK
         for x in range(ox, ox + ex):
             for y in range(oy, oy + ey):
                 for z in range(oz, oz + ez):
-                    _paint_voxel((x, y, z), dims, filled, colors, priority, COLOR_TANK, PRIORITY_TANK)
+                    _paint_voxel((x, y, z), dims, filled, colors, priority, color, level)
 
     # Instruments: paint one voxel marker.
     for asset in data.get("assets", []):
@@ -154,6 +162,15 @@ def main() -> None:
                 vc = tuple(int(v) for v in comp["vc_center"])
                 _paint_voxel(vc, dims, filled, colors, priority, COLOR_ELBOW, PRIORITY_ELBOW)
 
+    tee_rendered = 0
+    for tee in data.get("tee_joints", []):
+        vc_center = tee.get("vc_center")
+        if not (isinstance(vc_center, list) and len(vc_center) == 3):
+            continue
+        vc = (int(vc_center[0]), int(vc_center[1]), int(vc_center[2]))
+        _paint_voxel(vc, dims, filled, colors, priority, COLOR_TEE, PRIORITY_TEE)
+        tee_rendered += 1
+
     fig = plt.figure(figsize=(11, 8))
     ax = fig.add_subplot(111, projection="3d")
     ax.voxels(filled, facecolors=colors, edgecolor=(0.1, 0.1, 0.1, 0.08))
@@ -166,10 +183,12 @@ def main() -> None:
 
     legend_items = [
         Patch(facecolor=COLOR_TANK, edgecolor="none", label="Tank bbox"),
+        Patch(facecolor=COLOR_CUSTOM_MODULE, edgecolor="none", label="CustomModule bbox"),
         Patch(facecolor=COLOR_INSTRUMENT, edgecolor="none", label="Instrument"),
         Patch(facecolor=COLOR_PIPE, edgecolor="none", label="Pipe"),
         Patch(facecolor=COLOR_SIGNAL_LINE, edgecolor="none", label="SignalLine"),
         Patch(facecolor=COLOR_ELBOW, edgecolor="none", label="Elbow center"),
+        Patch(facecolor=COLOR_TEE, edgecolor="none", label="Tee center"),
     ]
     ax.legend(handles=legend_items, loc="upper left", frameon=True)
     plt.tight_layout()
