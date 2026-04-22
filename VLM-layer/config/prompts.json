@@ -1,0 +1,4 @@
+{
+  "describe_image_user_prompt": "请根据给定的 P&ID 图片提取路由输入 JSON。",
+  "router_input_prompt_file": "VLM-layer/config/router_input_prompt.md"
+}

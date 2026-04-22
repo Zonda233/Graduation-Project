@@ -1,0 +1,5 @@
+# 感知层冒烟脚本（LangGraph + OpenRouter 兼容端点）
+langgraph>=0.2.55
+langchain-openai>=0.3.0
+langchain-core>=0.3.0
+jsonschema>=4.0.0

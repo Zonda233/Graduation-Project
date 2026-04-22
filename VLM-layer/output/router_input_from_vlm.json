@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "schema_name": "router_input_v1",
+    "protocol_version": "0.1.0",
+    "created_at": "2026-04-10T12:00:00Z",
+    "generator": "manual_instrument_demo",
+    "units": {
+      "length": "m",
+      "pressure": "kPa",
+      "temperature": "degC"
+    }
+  },
+  "nodes": [
+    {
+      "id": "port_tanka_outlet",
+      "type": "EquipmentPort",
+      "role": "outlet",
+      "label": "TankA 出口",
+      "pid_tag": "TankA",
+      "equipment_ref": "TankA"
+    },
+    {
+      "id": "port_tankb_inlet",
+      "type": "EquipmentPort",
+      "role": "inlet",
+      "label": "TankB 入口",
+      "pid_tag": "TankB",
+      "equipment_ref": "TankB"
+    },
+    {
+      "id": "junc_tee_main",
+      "type": "Junction",
+      "role": "branch_point",
+      "label": "主管三通"
+    },
+    {
+      "id": "port_module_inlet",
+      "type": "EquipmentPort",
+      "role": "inlet",
+      "label": "模块入口",
+      "equipment_ref": "Module",
+      "properties": {
+        "asset_type": "custom_module",
+        "module_kind": "custom",
+        "module_voxel_extent": [
+          3,
+          2,
+          2
+        ],
+        "port_local_wc": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "port_kind": "process"
+      }
+    },
+    {
+      "id": "port_tanka_ti_conn",
+      "type": "EquipmentPort",
+      "role": "instrument_tap",
+      "label": "TI 接口",
+      "equipment_ref": "TankA"
+    },
+    {
+      "id": "port_tanka_pi_conn",
+      "type": "EquipmentPort",
+      "role": "instrument_tap",
+      "label": "PI 接口",
+      "equipment_ref": "TankA"
+    },
+    {
+      "id": "inst_ti_101",
+      "type": "InlineInstrument",
+      "label": "TI-101",
+      "properties": {
+        "instrument_kind": "thermometer"
+      }
+    },
+    {
+      "id": "inst_pi_102",
+      "type": "InlineInstrument",
+      "label": "PI-102",
+      "properties": {
+        "instrument_kind": "pressure_gauge"
+      }
+    }
+  ],
+  "lines": [
+    {
+      "id": "L_main_process",
+      "tag": "P-MAIN-100",
+      "from_node": "port_tanka_outlet",
+      "to_node": "port_tankb_inlet",
+      "via_nodes": [
+        "junc_tee_main"
+      ],
+      "service": "Fluid",
+      "nominal_diameter_mm": 100,
+      "with_flanges": true
+    },
+    {
+      "id": "L_branch_module",
+      "tag": "P-BR-MOD-80",
+      "from_node": "junc_tee_main",
+      "to_node": "port_module_inlet",
+      "service": "Fluid",
+      "nominal_diameter_mm": 80,
+      "with_flanges": true
+    },
+    {
+      "id": "L_sig_ti_101",
+      "tag": "SIG-TI-101",
+      "from_node": "port_tanka_ti_conn",
+      "to_node": "inst_ti_101",
+      "service": "instrument_signal",
+      "nominal_diameter_mm": 6,
+      "with_flanges": false
+    },
+    {
+      "id": "L_sig_pi_102",
+      "tag": "SIG-PI-102",
+      "from_node": "port_tanka_pi_conn",
+      "to_node": "inst_pi_102",
+      "service": "instrument_signal",
+      "nominal_diameter_mm": 6,
+      "with_flanges": false
+    }
+  ],
+  "constraints": {
+    "routing_rules": {
+      "min_spacing_between_parallel_lines_m": 0.05,
+      "min_clearance_to_floor_m": 0.2,
+      "max_elbows_per_line": 12
+    }
+  }
+}

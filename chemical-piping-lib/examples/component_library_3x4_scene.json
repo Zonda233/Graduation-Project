@@ -1,0 +1,294 @@
+{
+  "_comment": "元件库陈列：12种元件各1个，3x4布局，间距2m。",
+  "meta": {
+    "protocol_version": "1.0.0",
+    "generator": "component_library_3x4_scene",
+    "coordinate_system": {
+      "type": "right_handed",
+      "up_axis": "Z",
+      "unit": "meter"
+    },
+    "voxel_grid": {
+      "voxel_size": 0.2,
+      "origin_wc": [0.0, 0.0, 0.0],
+      "dimensions": [80, 80, 40]
+    }
+  },
+  "materials": [
+    {
+      "id": "mat_demo",
+      "display_name": "Demo Steel",
+      "visual": {
+        "base_color": [0.55, 0.58, 0.62, 1.0],
+        "metallic": 0.9,
+        "roughness": 0.35
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "tank_01",
+      "type": "Tank",
+      "display_name": "Tank Display",
+      "wc_center": [4.0, 0.0, 0.8],
+      "material_id": "mat_demo",
+      "geometry": {
+        "shell_radius": 0.35,
+        "shell_height": 0.8,
+        "head_type": "ellipsoidal",
+        "orientation": "vertical"
+      },
+      "ports": [
+        {
+          "port_id": "tank_01_outlet",
+          "role": "outlet",
+          "wc": [4.0, 0.0, 0.3],
+          "direction": "-Z",
+          "nominal_diameter": 0.1
+        }
+      ]
+    },
+    {
+      "id": "inst_thermo_01",
+      "type": "Instrument",
+      "display_name": "TI-101",
+      "instrument_kind": "thermometer",
+      "wc_center": [0.0, 4.0, 0.3],
+      "material_id": "mat_demo",
+      "geometry": {
+        "face_axis": "+X"
+      },
+      "ports": [
+        {
+          "port_id": "inst_thermo_01_port",
+          "role": "signal",
+          "wc": [0.0, 4.0, 0.3],
+          "direction": "+X",
+          "nominal_diameter": 0.006
+        }
+      ]
+    },
+    {
+      "id": "inst_press_01",
+      "type": "Instrument",
+      "display_name": "PI-102",
+      "instrument_kind": "pressure_gauge",
+      "wc_center": [2.0, 4.0, 0.3],
+      "material_id": "mat_demo",
+      "geometry": {
+        "face_axis": "+X"
+      },
+      "ports": [
+        {
+          "port_id": "inst_press_01_port",
+          "role": "signal",
+          "wc": [2.0, 4.0, 0.3],
+          "direction": "+X",
+          "nominal_diameter": 0.006
+        }
+      ]
+    },
+    {
+      "id": "custom_module_01",
+      "type": "CustomModule",
+      "display_name": "Custom 1x1",
+      "wc_center": [4.0, 6.0, 0.5],
+      "voxel_extent": [5, 5, 5],
+      "material_id": "mat_demo",
+      "geometry": {
+        "shape": "box",
+        "size_xyz_m": [1.0, 1.0, 1.0]
+      },
+      "ports": [
+        {
+          "port_id": "custom_module_01_in",
+          "role": "inlet",
+          "wc": [3.5, 6.0, 0.5],
+          "direction": "-X",
+          "nominal_diameter": 0.08
+        }
+      ]
+    }
+  ],
+  "tee_joints": [
+    {
+      "tee_id": "tee_01",
+      "id": "tee_01",
+      "wc_center": [2.0, 2.0, 0.3],
+      "ports": [
+        {
+          "port_id": "tee_01_run_a",
+          "axis": "-X",
+          "connects_to_comp": "disp_tee_stub_a"
+        },
+        {
+          "port_id": "tee_01_run_b",
+          "axis": "+X",
+          "connects_to_comp": "disp_tee_stub_b"
+        },
+        {
+          "port_id": "tee_01_branch",
+          "axis": "+Y",
+          "connects_to_comp": "disp_tee_stub_c"
+        }
+      ],
+      "spec": {
+        "main_diameter": 0.1,
+        "branch_diameter": 0.1,
+        "material_id": "mat_demo"
+      }
+    }
+  ],
+  "segments": [
+    {
+      "id": "seg_pipe_only",
+      "display_name": "Pipe Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "pipe_01",
+          "type": "Pipe",
+          "wc_start": [-0.5, 0.0, 0.3],
+          "wc_end": [0.5, 0.0, 0.3],
+          "axis": "+X",
+          "length_m": 1.0
+        }
+      ]
+    },
+    {
+      "id": "seg_elbow_only",
+      "display_name": "Elbow Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "elbow_01",
+          "type": "Elbow",
+          "wc_center": [2.0, 0.0, 0.3],
+          "axis_in": "-X",
+          "axis_out": "+Y",
+          "angle_deg": 90,
+          "bend_radius_m": 0.2
+        }
+      ]
+    },
+    {
+      "id": "seg_flange_only",
+      "display_name": "Flange Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "flange_01",
+          "type": "Flange",
+          "wc_face": [0.0, 2.0, 0.3],
+          "face_axis": "+Z",
+          "nominal_diameter": 0.1
+        }
+      ]
+    },
+    {
+      "id": "seg_reducer_only",
+      "display_name": "Reducer Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "reducer_01",
+          "type": "Reducer",
+          "wc_start": [3.5, 2.0, 0.3],
+          "wc_end": [4.5, 2.0, 0.3],
+          "axis": "+X",
+          "diameter_in_m": 0.1,
+          "diameter_out_m": 0.06
+        }
+      ]
+    },
+    {
+      "id": "seg_valve_gate_only",
+      "display_name": "Gate Valve Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "valve_gate_01",
+          "type": "Valve",
+          "subtype": "Gate",
+          "wc_start": [3.5, 4.0, 0.3],
+          "wc_end": [4.5, 4.0, 0.3],
+          "axis": "+X",
+          "nominal_diameter": 0.1
+        }
+      ]
+    },
+    {
+      "id": "seg_valve_ball_only",
+      "display_name": "Ball Valve Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.1,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "valve_ball_01",
+          "type": "Valve",
+          "subtype": "Ball",
+          "wc_start": [-0.5, 6.0, 0.3],
+          "wc_end": [0.5, 6.0, 0.3],
+          "axis": "+X",
+          "nominal_diameter": 0.1
+        }
+      ]
+    },
+    {
+      "id": "seg_signal_only",
+      "display_name": "SignalLine Display",
+      "from_port": null,
+      "to_port": null,
+      "spec": {
+        "nominal_diameter": 0.006,
+        "material_id": "mat_demo",
+        "with_flanges": false
+      },
+      "components": [
+        {
+          "comp_id": "signal_line_01",
+          "type": "SignalLine",
+          "wc_start": [1.5, 6.0, 0.3],
+          "wc_end": [2.5, 6.0, 0.3],
+          "axis": "+X",
+          "length_m": 1.0
+        }
+      ]
+    }
+  ]
+}
