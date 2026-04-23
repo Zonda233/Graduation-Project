@@ -101,8 +101,8 @@ def main():
 
     # 2. 运行路由层（使用 SchemaCompliantJsonEmitter 以通过生成层 schema）
     from router_layer.config import RouterConfig
-    from router_layer.json_emitter import SchemaCompliantJsonEmitter
-    from router_layer.service import DefaultRouterService
+    from router_layer.emission.schema_emitter import SchemaCompliantJsonEmitter
+    from router_layer.service.default_service import DefaultRouterService
 
     service = DefaultRouterService(json_emitter=SchemaCompliantJsonEmitter())
     generation_json = service.route(router_input)

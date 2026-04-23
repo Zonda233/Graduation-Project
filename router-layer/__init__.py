@@ -1,19 +1,15 @@
 """
 Router layer package.
 
-This package implements a minimal, sequential A* based routing layer that:
-- Consumes router-input-protocol JSON (graph-level).
-- Emits generation-layer JSON compatible (in shape) with chemical-piping-lib.
-
-The public entrypoint for callers is `DefaultRouterService.route(router_input: dict) -> dict`.
+Public entrypoint: `DefaultRouterService.route(router_input: dict) -> dict`
 """
 
 from .config import RouterConfig
-from .service import DefaultRouterService, IRouterService
+from .service.default_service import DefaultRouterService
+from .service.router_service import RouterService
 
 __all__ = [
-    "IRouterService",
+    "RouterService",
     "DefaultRouterService",
     "RouterConfig",
 ]
-
