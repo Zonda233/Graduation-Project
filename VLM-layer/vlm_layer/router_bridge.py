@@ -1,51 +1,99 @@
+"""
+router_bridge.py
+================
+VLM-layer → router-layer 的跨层桥接适配器。
+
+该模块是 VLM-layer 调用 router-layer 的**唯一**入口。
+实际桥接逻辑已迁移到 ``router-layer/bridge/generation_bridge.py``；
+本模块仅负责：
+
+1. 定位 repo_root 并加载 router-layer bridge 子包。
+2. 将 VLM-layer 的调用转发给 router-layer bridge。
+3. 重新导出 :func:`dump_json` 以保持 pipeline.py 的调用接口不变。
+
+设计约束
+--------
+- VLM-layer 内部不直接 import router_layer.*，所有跨层调用经由本模块。
+- router-layer bridge 经由 importlib 动态加载，避免在 VLM-layer 安装时
+  要求 router-layer 也必须安装。
+"""
+
 from __future__ import annotations
 
 import importlib.util
-import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
+# ---------------------------------------------------------------------------
+# 定位 repo_root（本文件位于 VLM-layer/vlm_layer/，向上两级即为项目根）
+# ---------------------------------------------------------------------------
+_THIS_FILE  = Path(__file__).resolve()
+_REPO_ROOT  = _THIS_FILE.parent.parent.parent   # Graduation-Project/
 
-def _load_router_layer_package(router_layer_dir: Path) -> None:
-    pkg_init = router_layer_dir / "__init__.py"
-    spec = importlib.util.spec_from_file_location(
-        "router_layer",
-        str(pkg_init),
-        submodule_search_locations=[str(router_layer_dir)],
-    )
+
+def _load_router_bridge_module():
+    """
+    动态加载 router-layer/bridge/generation_bridge.py 并返回该模块。
+
+    使用 importlib 而非直接 import，以避免在 VLM-layer 的 Python 环境中
+    要求 router-layer 目录必须在 sys.path 上。
+    """
+    bridge_path = _REPO_ROOT / "router-layer" / "bridge" / "generation_bridge.py"
+    if not bridge_path.is_file():
+        raise FileNotFoundError(
+            f"router_bridge: generation_bridge.py not found at {bridge_path}\n"
+            "请确认 router-layer/bridge/ 子包已创建。"
+        )
+
+    mod_name = "router_layer.bridge.generation_bridge"
+    if mod_name in sys.modules:
+        return sys.modules[mod_name]
+
+    spec = importlib.util.spec_from_file_location(mod_name, str(bridge_path))
     if spec is None or spec.loader is None:
-        raise RuntimeError("Failed to create module spec for router_layer.")
+        raise RuntimeError(
+            f"router_bridge: failed to create module spec for {bridge_path}"
+        )
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = mod
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
 
-    pkg = importlib.util.module_from_spec(spec)
-    sys.modules["router_layer"] = pkg
-    spec.loader.exec_module(pkg)
 
+# ---------------------------------------------------------------------------
+# 公共 API（与旧接口保持兼容）
+# ---------------------------------------------------------------------------
 
-def route_to_generation_json(repo_root: Path, router_input: dict[str, Any]) -> dict[str, Any]:
-    router_layer_dir = repo_root / "router-layer"
-    if not router_layer_dir.is_dir():
-        raise FileNotFoundError(f"router-layer not found: {router_layer_dir}")
+def route_to_generation_json(
+    repo_root: Path,
+    router_input: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    将 router-input dict 通过路由层转换为 generation-layer JSON dict。
 
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    直接委托给 ``router-layer/bridge/generation_bridge.route_to_generation_json``。
 
-    cpl_root = repo_root / "chemical-piping-lib"
-    if cpl_root.is_dir() and str(cpl_root) not in sys.path:
-        sys.path.insert(0, str(cpl_root))
+    Parameters
+    ----------
+    repo_root:
+        项目根目录（含 ``router-layer/`` 和 ``chemical-piping-lib/``）。
+    router_input:
+        符合 ``router_input_v1.json`` schema 的 dict。
 
-    _load_router_layer_package(router_layer_dir)
-
-    from router_layer.json_emitter import SchemaCompliantJsonEmitter
-    from router_layer.service import DefaultRouterService
-
-    service = DefaultRouterService(json_emitter=SchemaCompliantJsonEmitter())
-    return service.route(router_input)
+    Returns
+    -------
+    符合 ``protocol_v1.json`` schema 的 generation-layer dict。
+    """
+    bridge = _load_router_bridge_module()
+    return bridge.route_to_generation_json(repo_root, router_input)
 
 
 def dump_json(path: Path, payload: dict[str, Any]) -> None:
-    os.makedirs(path.parent, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    """
+    将 *payload* 序列化为 JSON 并写入 *path*（父目录自动创建）。
 
+    直接委托给 ``router-layer/bridge/generation_bridge.dump_json``。
+    """
+    bridge = _load_router_bridge_module()
+    bridge.dump_json(path, payload)

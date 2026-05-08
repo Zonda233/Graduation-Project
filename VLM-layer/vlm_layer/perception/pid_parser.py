@@ -1,24 +1,37 @@
+"""P&ID image parsing via VLM.
+
+This module owns the full perception pipeline for a single image:
+  1. Encode the image as a data-URL.
+  2. Build the LangGraph perception graph.
+  3. Invoke the graph with the system prompt + image message.
+  4. Extract and return the JSON object from the raw model output.
+
+The retry / validation loop lives in ``pipeline.py`` — this module is
+intentionally stateless and side-effect-free (no file I/O, no logging).
+"""
+
 from __future__ import annotations
 
 import base64
 import json
 import mimetypes
-import os
 import re
 from pathlib import Path
-from typing import Annotated, Any, Sequence, TypedDict
+from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
-from langgraph.graph import END, START, StateGraph
-from langgraph.graph.message import add_messages
+
+from ..llm.client import build_chat_model
+from ..llm.graph import build_perception_graph
 
 
-class GraphState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], add_messages]
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
 
 def _image_to_data_url(image_path: Path) -> str:
+    """Encode *image_path* as a ``data:<mime>;base64,<b64>`` URL string."""
     mime, _ = mimetypes.guess_type(str(image_path))
     if not mime:
         mime = "image/png"
@@ -26,56 +39,22 @@ def _image_to_data_url(image_path: Path) -> str:
     return f"data:{mime};base64,{b64}"
 
 
-def _build_chat_model(global_cfg: dict[str, Any], model_override: str | None = None) -> ChatOpenAI:
-    or_cfg = global_cfg.get("openrouter") or {}
-    api_key = (or_cfg.get("api_key") or "").strip() or os.environ.get("OPENROUTER_API_KEY", "")
-    if not api_key:
-        raise ValueError(
-            "OpenRouter API key is missing. Set global_config.json.openrouter.api_key "
-            "or environment variable OPENROUTER_API_KEY."
-        )
-
-    base_url = (or_cfg.get("base_url") or "https://openrouter.ai/api/v1").rstrip("/")
-    model = model_override or or_cfg.get("chat_model") or "google/gemini-2.0-flash-001"
-    reasoning_enabled = bool((or_cfg.get("reasoning") or {}).get("enabled"))
-
-    default_headers: dict[str, str] = {}
-    referer = (or_cfg.get("http_referer") or "").strip()
-    if referer:
-        default_headers["HTTP-Referer"] = referer
-    title = (or_cfg.get("app_title") or "").strip()
-    if title:
-        default_headers["X-Title"] = title
-
-    extra_body: dict[str, Any] = {}
-    if reasoning_enabled:
-        extra_body["reasoning"] = {"enabled": True}
-
-    return ChatOpenAI(
-        model=model,
-        api_key=api_key,
-        base_url=base_url,
-        default_headers=default_headers or None,
-        extra_body=extra_body or None,
-        temperature=0,
-    )
-
-
-def _build_graph(llm: ChatOpenAI) -> Any:
-    def perceive(state: GraphState) -> dict[str, Any]:
-        out = llm.invoke(list(state["messages"]))
-        return {"messages": [out]}
-
-    graph = StateGraph(GraphState)
-    graph.add_node("perceive", perceive)
-    graph.add_edge(START, "perceive")
-    graph.add_edge("perceive", END)
-    return graph.compile()
-
-
 def _extract_json_object(raw: str) -> dict[str, Any]:
-    # 1) Direct JSON parse
+    """Extract the first JSON object from *raw* model output.
+
+    Tries three strategies in order:
+    1. Direct ``json.loads`` of the stripped text.
+    2. Markdown fenced block extraction (````json ... ````).
+    3. Balanced-brace scan to find the first complete ``{...}`` object.
+
+    Raises
+    ------
+    ValueError
+        If no valid JSON object can be found or parsed.
+    """
     raw_text = raw.strip()
+
+    # 1) Direct parse
     try:
         obj = json.loads(raw_text)
         if isinstance(obj, dict):
@@ -83,7 +62,7 @@ def _extract_json_object(raw: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         pass
 
-    # 2) Markdown fenced block parse
+    # 2) Markdown fenced block
     fenced_matches = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", raw_text, flags=re.S)
     for candidate in fenced_matches:
         try:
@@ -93,7 +72,7 @@ def _extract_json_object(raw: str) -> dict[str, Any]:
         except json.JSONDecodeError:
             continue
 
-    # 3) First balanced object parse
+    # 3) Balanced-brace scan
     start = raw_text.find("{")
     if start == -1:
         raise ValueError("Model output does not contain a JSON object.")
@@ -131,15 +110,43 @@ def _extract_json_object(raw: str) -> dict[str, Any]:
     return obj
 
 
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
 def generate_router_input_from_image(
     *,
     image_path: Path,
     system_prompt: str,
     global_cfg: dict[str, Any],
     model_override: str | None = None,
+    correction_message: str | None = None,
 ) -> tuple[dict[str, Any], str]:
-    llm = _build_chat_model(global_cfg, model_override=model_override)
-    graph = _build_graph(llm)
+    """Call the VLM to parse a P&ID image into a ``router_input_v1`` JSON.
+
+    Parameters
+    ----------
+    image_path:
+        Path to the P&ID image file.
+    system_prompt:
+        The full system prompt text (loaded from ``router_input_prompt.md``).
+    global_cfg:
+        Parsed ``global_config.json``.
+    model_override:
+        Optional model name override.
+    correction_message:
+        When provided, appended as an additional ``HumanMessage`` after the
+        image message.  Used by the retry loop to feed schema validation
+        errors back to the VLM.
+
+    Returns
+    -------
+    tuple[dict, str]
+        ``(parsed_json, raw_model_text)``
+    """
+    llm = build_chat_model(global_cfg, model_override=model_override)
+    graph = build_perception_graph(llm)
 
     messages: list[BaseMessage] = [
         SystemMessage(content=system_prompt),
@@ -150,6 +157,10 @@ def generate_router_input_from_image(
             ]
         ),
     ]
+
+    if correction_message:
+        messages.append(HumanMessage(content=correction_message))
+
     result = graph.invoke({"messages": messages})
     out_messages = list(result["messages"])
     last = out_messages[-1]
@@ -159,16 +170,14 @@ def generate_router_input_from_image(
     if isinstance(last.content, str):
         raw_text = last.content
     elif isinstance(last.content, list):
-        text_parts: list[str] = []
-        for part in last.content:
-            if isinstance(part, dict) and part.get("type") == "text":
-                text_parts.append(str(part.get("text", "")))
-            else:
-                text_parts.append(str(part))
+        text_parts: list[str] = [
+            str(part.get("text", "")) if isinstance(part, dict) and part.get("type") == "text"
+            else str(part)
+            for part in last.content
+        ]
         raw_text = "\n".join(p for p in text_parts if p).strip()
     else:
         raw_text = str(last.content)
 
     parsed = _extract_json_object(raw_text)
     return parsed, raw_text
-

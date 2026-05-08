@@ -12,7 +12,7 @@
   },
   "nodes": [
     {
-      "id": "port_tanka_outlet",
+      "id": "port_tankA_out",
       "type": "EquipmentPort",
       "role": "outlet",
       "label": "TankA 出口",
@@ -20,7 +20,7 @@
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_tankb_inlet",
+      "id": "port_tankB_in",
       "type": "EquipmentPort",
       "role": "inlet",
       "label": "TankB 入口",
@@ -28,16 +28,17 @@
       "equipment_ref": "TankB"
     },
     {
-      "id": "junc_tee_main",
+      "id": "junc_01",
       "type": "Junction",
       "role": "branch_point",
       "label": "主管三通"
     },
     {
-      "id": "port_module_inlet",
+      "id": "port_module_in",
       "type": "EquipmentPort",
       "role": "inlet",
-      "label": "模块入口",
+      "label": "Module 入口",
+      "pid_tag": "Module",
       "equipment_ref": "Module",
       "properties": {
         "asset_type": "custom_module",
@@ -56,31 +57,33 @@
       }
     },
     {
-      "id": "port_tanka_ti_conn",
+      "id": "port_tankA_sig_TI",
       "type": "EquipmentPort",
-      "role": "instrument_tap",
-      "label": "TI 接口",
+      "role": "signal",
+      "label": "TankA 温度信号口",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_tanka_pi_conn",
+      "id": "port_tankA_sig_PI",
       "type": "EquipmentPort",
-      "role": "instrument_tap",
-      "label": "PI 接口",
+      "role": "signal",
+      "label": "TankA 压力信号口",
       "equipment_ref": "TankA"
     },
     {
-      "id": "inst_ti_101",
+      "id": "inst_TI_101",
       "type": "InlineInstrument",
-      "label": "TI-101",
+      "role": "indicator",
+      "label": "温度指示器 TI-101",
       "properties": {
         "instrument_kind": "thermometer"
       }
     },
     {
-      "id": "inst_pi_102",
+      "id": "inst_PI_102",
       "type": "InlineInstrument",
-      "label": "PI-102",
+      "role": "indicator",
+      "label": "压力指示器 PI-102",
       "properties": {
         "instrument_kind": "pressure_gauge"
       }
@@ -89,39 +92,39 @@
   "lines": [
     {
       "id": "L_main_process",
-      "tag": "P-MAIN-100",
-      "from_node": "port_tanka_outlet",
-      "to_node": "port_tankb_inlet",
+      "tag": "P-001-100",
+      "from_node": "port_tankA_out",
+      "to_node": "port_tankB_in",
       "via_nodes": [
-        "junc_tee_main"
+        "junc_01"
       ],
-      "service": "Fluid",
+      "service": "ProcessFluid",
       "nominal_diameter_mm": 100,
       "with_flanges": true
     },
     {
       "id": "L_branch_module",
-      "tag": "P-BR-MOD-80",
-      "from_node": "junc_tee_main",
-      "to_node": "port_module_inlet",
-      "service": "Fluid",
+      "tag": "P-002-080",
+      "from_node": "junc_01",
+      "to_node": "port_module_in",
+      "service": "ProcessFluid",
       "nominal_diameter_mm": 80,
       "with_flanges": true
     },
     {
-      "id": "L_sig_ti_101",
+      "id": "L_sig_TI_101",
       "tag": "SIG-TI-101",
-      "from_node": "port_tanka_ti_conn",
-      "to_node": "inst_ti_101",
+      "from_node": "port_tankA_sig_TI",
+      "to_node": "inst_TI_101",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false
     },
     {
-      "id": "L_sig_pi_102",
+      "id": "L_sig_PI_102",
       "tag": "SIG-PI-102",
-      "from_node": "port_tanka_pi_conn",
-      "to_node": "inst_pi_102",
+      "from_node": "port_tankA_sig_PI",
+      "to_node": "inst_PI_102",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false

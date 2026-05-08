@@ -43,6 +43,7 @@ constraints 必须等于：
 
 【结构与语义约束】
 - `nodes[].type` 仅可使用：`Equipment`、`EquipmentPort`、`InlineInstrument`、`Junction`、`Boundary`。
+- `nodes[].role` 对于 `EquipmentPort` 类型节点，**必须且只能**从以下枚举中选取：`inlet` | `outlet` | `vent` | `drain` | `signal`。禁止使用任何其他值（如 `instrument_connection`、`nozzle`、`process_port` 等均不合法）。
 - `lines[]` 的每个元素至少要有：`id`、`from_node`、`to_node`。
 - 每个 `from_node`/`to_node`/`via_nodes[]` 必须引用已有 `nodes[].id`。
 - 对于仪表信号线，`service` 使用 `instrument_signal`，并必须要 `with_flanges=false`，而且`nominal_diameter_mm`必须填`6`。
@@ -131,7 +132,7 @@ constraints 必须等于：
 |------|------|------|------|
 | `id` | string | ✅ | 全局唯一，建议与生成层 port_id 对应 |
 | `type` | string | ✅ | 见下表枚举 |
-| `role` | string | ❌ | 语义角色，如 PumpSuction、TankNozzle、unit_battery_limit、maintenance_access |
+| `role` | string | ❌ | 语义角色。**`EquipmentPort` 节点必须从枚举中选取**：`inlet` \| `outlet` \| `vent` \| `drain` \| `signal`。其他 node 类型可自由填写（如 `branch_point`、`line_end`）。 |
 | `label` | string | ❌ | 显示名 |
 | `pid_tag` | string | ❌ | P&ID 设备位号（若为设备端口） |
 | `equipment_ref` | string | ❌ | 所属设备 ID（若 type=EquipmentPort） |
