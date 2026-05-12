@@ -154,13 +154,18 @@ class Elbow(PipingAsset):
         )
         recalc_normals(bm)
 
-        # --- 3. Write to Object (no rotation needed — arc is in world space)
+        # --- 3. Write to Object ---------------------------------------
+        # The arc vertices are in world space.  We place the object origin
+        # at wc_center (the geometric corner of the bend) and shift every
+        # vertex by -wc_center so that vertex positions are relative to the
+        # object origin.  This keeps the mesh at the correct world position
+        # while giving the object a meaningful Location in Blender's UI.
+        offset = self.wc_center
+        for vert in bm.verts:
+            vert.co -= offset
+
         self._obj = bm_to_object(bm, name=self.comp_id, collection=self.collection)
-        # Location stays at world origin because vertex positions are already
-        # in world space.  (Blender interprets mesh vertex coords relative to
-        # the object's origin; since we never move the object its origin IS
-        # the world origin, and the vertices encode absolute positions.)
-        # This is correct and intentional.
+        self._obj.location = offset.copy()
 
         # --- 4. Finalise ----------------------------------------------
         self._finalise()

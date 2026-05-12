@@ -10,6 +10,10 @@
       "temperature": "degC"
     }
   },
+  "plant": {
+    "plant_id": "DEMO_PLANT",
+    "unit_id": "UNIT_001"
+  },
   "nodes": [
     {
       "id": "port_tankA_out",
@@ -28,7 +32,7 @@
       "equipment_ref": "TankB"
     },
     {
-      "id": "junc_01",
+      "id": "junc_tee_01",
       "type": "Junction",
       "role": "branch_point",
       "label": "主管三通"
@@ -38,7 +42,6 @@
       "type": "EquipmentPort",
       "role": "inlet",
       "label": "Module 入口",
-      "pid_tag": "Module",
       "equipment_ref": "Module",
       "properties": {
         "asset_type": "custom_module",
@@ -57,21 +60,23 @@
       }
     },
     {
-      "id": "port_tankA_sig_TI",
+      "id": "port_TI101_signal",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "TankA 温度信号口",
+      "label": "TI101 信号接口",
+      "pid_tag": "TI-101",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_tankA_sig_PI",
+      "id": "port_PI102_signal",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "TankA 压力信号口",
+      "label": "PI102 信号接口",
+      "pid_tag": "PI-102",
       "equipment_ref": "TankA"
     },
     {
-      "id": "inst_TI_101",
+      "id": "inst_TI101",
       "type": "InlineInstrument",
       "role": "indicator",
       "label": "温度指示器 TI-101",
@@ -80,7 +85,7 @@
       }
     },
     {
-      "id": "inst_PI_102",
+      "id": "inst_PI102",
       "type": "InlineInstrument",
       "role": "indicator",
       "label": "压力指示器 PI-102",
@@ -96,7 +101,7 @@
       "from_node": "port_tankA_out",
       "to_node": "port_tankB_in",
       "via_nodes": [
-        "junc_01"
+        "junc_tee_01"
       ],
       "service": "ProcessFluid",
       "nominal_diameter_mm": 100,
@@ -104,27 +109,27 @@
     },
     {
       "id": "L_branch_module",
-      "tag": "P-002-080",
-      "from_node": "junc_01",
+      "tag": "P-002-80",
+      "from_node": "junc_tee_01",
       "to_node": "port_module_in",
       "service": "ProcessFluid",
       "nominal_diameter_mm": 80,
       "with_flanges": true
     },
     {
-      "id": "L_sig_TI_101",
+      "id": "L_sig_TI101",
       "tag": "SIG-TI-101",
-      "from_node": "port_tankA_sig_TI",
-      "to_node": "inst_TI_101",
+      "from_node": "port_TI101_signal",
+      "to_node": "inst_TI101",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false
     },
     {
-      "id": "L_sig_PI_102",
+      "id": "L_sig_PI102",
       "tag": "SIG-PI-102",
-      "from_node": "port_tankA_sig_PI",
-      "to_node": "inst_PI_102",
+      "from_node": "port_PI102_signal",
+      "to_node": "inst_PI102",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false

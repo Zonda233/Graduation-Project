@@ -14,6 +14,7 @@ class Grid3D:
     ny: int
     nz: int
     occupied: Set[Vc]
+    voxel_size: float = 0.2  # metres per voxel edge; used by elbow-spacing constraint
 
     @property
     def shape(self) -> Tuple[int, int, int]:
@@ -29,10 +30,10 @@ class Grid3D:
     def with_forbidden(self, forbidden: Iterable[Vc]) -> "Grid3D":
         new_occupied = set(self.occupied)
         new_occupied.update(forbidden)
-        return Grid3D(self.nx, self.ny, self.nz, new_occupied)
+        return Grid3D(self.nx, self.ny, self.nz, new_occupied, self.voxel_size)
 
     def with_allowed(self, allowed: Iterable[Vc]) -> "Grid3D":
         new_occupied = set(self.occupied)
         for vc in allowed:
             new_occupied.discard(vc)
-        return Grid3D(self.nx, self.ny, self.nz, new_occupied)
+        return Grid3D(self.nx, self.ny, self.nz, new_occupied, self.voxel_size)

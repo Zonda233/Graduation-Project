@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Tuple
+
+log = logging.getLogger(__name__)
 
 from ..config import RouterConfig
 from ..constants import (
@@ -225,37 +228,87 @@ class SegmentsAndTeesAssembler:
                         continue
                     prev_vc = path[idx - 1]
                     next_vc = path[idx + 1]
+                    # delta_vc(a, b) = a - b, so delta_vc(prev, tee) points FROM tee TOWARD prev.
+                    # This gives the outward direction of the run_a port (facing the upstream pipe).
                     run_a_axis = axis_map.get(VoxelGeometryMaps.delta_vc(prev_vc, tee_vc))
+                    # Similarly, delta_vc(next, tee) points FROM tee TOWARD next — the run_b port direction.
                     run_b_axis = axis_map.get(VoxelGeometryMaps.delta_vc(next_vc, tee_vc))
                 elif line.from_node_id == via_id and len(path) >= 2 and path[0] == tee_vc:
                     branch_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[1], tee_vc))
 
-            tee_axes[tee_id] = {
-                "run_a": run_a_axis or TEE_DEFAULT_AXES["run_a"],
-                "run_b": run_b_axis or TEE_DEFAULT_AXES["run_b"],
-                "branch": branch_axis or TEE_DEFAULT_AXES["branch"],
-            }
-            tee_axes[tee_id] = self._normalize_tee_axes(tee_axes[tee_id])
+            tee_axes[tee_id] = self._normalize_tee_axes(
+                tee_id, run_a_axis, run_b_axis, branch_axis
+            )
         return tee_axes
 
     @staticmethod
-    def _normalize_tee_axes(axes: Dict[str, str]) -> Dict[str, str]:
+    def _normalize_tee_axes(
+        tee_id: str,
+        run_a_axis: Optional[str],
+        run_b_axis: Optional[str],
+        branch_axis: Optional[str],
+    ) -> Dict[str, str]:
+        """
+        Validate and repair tee axis assignments.
+
+        Rules
+        -----
+        1. run_a and run_b are kept as-is when both were computed from the path.
+           They do NOT need to be anti-parallel — a tee can sit at an L-shaped
+           bend in the main run (e.g. run_a="-X", run_b="+Y").
+        2. Only when run_b was NOT computed from the path AND run_a is known do
+           we infer run_b = opposite(run_a) as a straight-through fallback.
+           This prevents silently overwriting a valid L-shaped run_b axis.
+        3. branch must not collide with run_a or run_b; if it does, pick the
+           first available axis.
+        4. All three axes must be distinct; log a WARNING if any collision
+           remains after repair.
+        """
         opposite = {
             "+X": "-X", "-X": "+X",
             "+Y": "-Y", "-Y": "+Y",
             "+Z": "-Z", "-Z": "+Z",
         }
-        run_a = axes.get("run_a", TEE_DEFAULT_AXES["run_a"])
-        run_b = axes.get("run_b", TEE_DEFAULT_AXES["run_b"])
-        branch = axes.get("branch", TEE_DEFAULT_AXES["branch"])
+        run_a  = run_a_axis  or TEE_DEFAULT_AXES["run_a"]
+        branch = branch_axis or TEE_DEFAULT_AXES["branch"]
 
-        if run_b != opposite.get(run_a):
+        # Rule 2: infer run_b only when it was not computed from the path.
+        # If run_b_axis is None the path did not provide it; use opposite(run_a)
+        # as a straight-through guess.  If run_b_axis was computed, use it
+        # directly — even if it is not anti-parallel to run_a (L-shaped tee).
+        if run_b_axis is not None:
+            run_b = run_b_axis
+        elif run_a_axis is not None:
             run_b = opposite.get(run_a, TEE_DEFAULT_AXES["run_b"])
+        else:
+            run_b = TEE_DEFAULT_AXES["run_b"]
+
+        # Rule 3: branch must not collide with either run axis.
         if branch in {run_a, run_b}:
             for candidate in ("+Y", "-Y", "+Z", "-Z", "+X", "-X"):
                 if candidate not in {run_a, run_b}:
                     branch = candidate
                     break
+
+        # Rule 4: warn if any two axes are still identical (degenerate tee).
+        if len({run_a, run_b, branch}) < 3:
+            log.warning(
+                "Tee %r has degenerate axis assignment after normalisation: "
+                "run_a=%r run_b=%r branch=%r.  "
+                "Check that the via-node path passes through the tee voxel correctly.",
+                tee_id, run_a, run_b, branch,
+            )
+
+        # Warn when run_a and run_b are not anti-parallel (L-shaped main run).
+        # This is geometrically valid but unusual; log it so it is easy to spot.
+        if opposite.get(run_a) != run_b:
+            log.warning(
+                "Tee %r has a non-straight main run: run_a=%r run_b=%r "
+                "(they are not anti-parallel).  "
+                "This is valid for an L-shaped junction but verify the path is correct.",
+                tee_id, run_a, run_b,
+            )
+
         return {"run_a": run_a, "run_b": run_b, "branch": branch}
 
     def _build_tee_joints(

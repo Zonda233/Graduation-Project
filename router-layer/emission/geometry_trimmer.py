@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Dict, List, Optional
 
 from ..config import RouterConfig
@@ -11,6 +12,30 @@ from ..constants import (
 )
 from ..grid.voxel_geometry import VoxelGeometryMaps
 
+log = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+_AXIS_OPPOSITE: Dict[str, str] = {
+    "+X": "-X", "-X": "+X",
+    "+Y": "-Y", "-Y": "+Y",
+    "+Z": "-Z", "-Z": "+Z",
+}
+
+
+def _opposite_axis(axis: str) -> str:
+    """Return the axis string pointing in the opposite direction."""
+    try:
+        return _AXIS_OPPOSITE[axis]
+    except KeyError:
+        raise ValueError(f"Unknown axis string: {axis!r}") from None
+
+
+# ---------------------------------------------------------------------------
+# Main class
+# ---------------------------------------------------------------------------
 
 class PipeAndTeeGeometryTrimmer:
     """Adjusts Pipe wc endpoints at Elbows and Tee ports to match generation-layer geometry."""
@@ -58,23 +83,104 @@ class PipeAndTeeGeometryTrimmer:
                 return comp
         return None
 
-    def tee_port_wc(self, tee: Dict[str, object], port_id: str) -> Optional[List[float]]:
-        wc_center = list(tee["wc_center"])  # type: ignore[list-item]
+    def tee_offset_m(self, tee: Dict[str, object], port_id: str) -> float:
+        """Return the half-length offset (metres) for the given tee port.
+
+        The offset is capped at half a voxel so the pipe end never overshoots
+        the adjacent voxel centre.
+        """
         spec = tee["spec"]  # type: ignore[assignment]
         main_d = float(spec["main_diameter"])  # type: ignore[index]
         main_od = VoxelGeometryMaps.outer_diameter_m(main_d)
+        if port_id.endswith("_branch"):
+            offset_raw = self._config.tee_branch_half_length_factor * main_od
+        else:
+            offset_raw = self._config.tee_run_half_length_factor * main_od
+        return min(offset_raw, self._config.voxel_size / 2.0)
+
+    def tee_port_wc(self, tee: Dict[str, object], port_id: str) -> Optional[List[float]]:
+        """Return the world-coordinate position of a tee port face centre.
+
+        The position is computed by shifting ``wc_center`` along the **tee
+        port's own axis** (as stored in the tee JSON).  This is the correct
+        position for the tee mesh stub end.
+
+        .. warning::
+            Do **not** use this to set a connecting pipe's ``wc_start`` /
+            ``wc_end`` unless you have verified that the pipe's travel axis
+            matches the tee port axis.  Use
+            :meth:`tee_port_wc_for_pipe` instead.
+        """
+        wc_center = list(tee["wc_center"])  # type: ignore[list-item]
         for port in tee.get("ports", []):  # type: ignore[union-attr]
             p = port  # type: Dict[str, object]
             if str(p.get("port_id")) != port_id:
                 continue
             axis = str(p["axis"])
-            if port_id.endswith("_branch"):
-                offset_raw = self._config.tee_branch_half_length_factor * main_od
-            else:
-                offset_raw = self._config.tee_run_half_length_factor * main_od
-            offset = min(offset_raw, self._config.voxel_size / 2.0)
+            offset = self.tee_offset_m(tee, port_id)
             return VoxelGeometryMaps.shift_wc(wc_center, axis, offset)
         return None
+
+    def tee_port_wc_for_pipe(
+        self,
+        tee: Dict[str, object],
+        port_id: str,
+        pipe_axis: str,
+        *,
+        arriving: bool = False,
+    ) -> List[float]:
+        """Return the wc position where a connecting pipe should start/end.
+
+        Unlike :meth:`tee_port_wc`, this shifts ``wc_center`` along
+        ``pipe_axis`` — the pipe's **actual travel direction** — rather than
+        the tee port axis stored in the JSON.
+
+        This is the correct value to assign to ``wc_start`` / ``wc_end`` of
+        the pipe component, because the pipe travels along its own axis, not
+        necessarily along the tee port axis.  The two axes should agree for a
+        well-formed tee, but when the router places a branch segment that
+        immediately turns (or when the tee axis assignment is imprecise), they
+        can differ, causing a visible gap or overlap in Blender.
+
+        Parameters
+        ----------
+        tee:
+            The tee_joint dict from the emitted JSON.
+        port_id:
+            The port identifier (e.g. ``"tee_01_branch"``).
+        pipe_axis:
+            The axis string of the connecting pipe (e.g. ``"+X"``).
+        arriving:
+            When ``True`` the pipe is *arriving* at this tee (i.e. the tee is
+            the segment's ``to_port``).  The port face is on the side the pipe
+            comes **from**, which is the direction *opposite* to the pipe's
+            travel axis.  When ``False`` (default) the pipe is *departing*
+            from the tee (``from_port``), so the port face is in the same
+            direction as the pipe's travel axis.
+        """
+        wc_center = list(tee["wc_center"])  # type: ignore[list-item]
+        offset = self.tee_offset_m(tee, port_id)
+
+        # For an arriving pipe the port stub is behind the tee centre relative
+        # to the pipe's travel direction, so we negate the axis.
+        effective_axis = _opposite_axis(pipe_axis) if arriving else pipe_axis
+
+        # Warn when the effective axis disagrees with the tee port axis — this
+        # indicates either a routing anomaly or an axis-assignment bug.
+        for port in tee.get("ports", []):  # type: ignore[union-attr]
+            p = port  # type: Dict[str, object]
+            if str(p.get("port_id")) == port_id:
+                tee_axis = str(p["axis"])
+                if tee_axis != effective_axis:
+                    log.warning(
+                        "Tee port %r axis %r disagrees with effective pipe axis %r "
+                        "(pipe_axis=%r, arriving=%r). "
+                        "Using effective pipe axis for wc endpoint.",
+                        port_id, tee_axis, effective_axis, pipe_axis, arriving,
+                    )
+                break
+
+        return VoxelGeometryMaps.shift_wc(wc_center, effective_axis, offset)
 
     @staticmethod
     def tee_id_from_port(port_id: str) -> Optional[str]:
@@ -91,28 +197,58 @@ class PipeAndTeeGeometryTrimmer:
         segment: Dict[str, object],
         tee_map: Dict[str, Dict[str, object]],
     ) -> None:
+        """Trim the first/last pipe of a segment to the correct tee port face.
+
+        The pipe's ``wc_start`` / ``wc_end`` is set by shifting the tee's
+        ``wc_center`` along the **pipe's own travel axis** (``pipe["axis"]``),
+        not along the tee port axis stored in the JSON.
+
+        Sign convention
+        ---------------
+        * **Departing pipe** (``from_port`` is a tee): the pipe leaves the tee
+          in its travel direction, so the port face is at
+          ``wc_center + offset × pipe_axis``.  ``arriving=False`` (default).
+        * **Arriving pipe** (``to_port`` is a tee): the pipe reaches the tee
+          from the opposite side, so the port face is at
+          ``wc_center - offset × pipe_axis`` (i.e. ``wc_center + offset ×
+          opposite(pipe_axis)``).  ``arriving=True``.
+
+        This is the key invariant: the pipe endpoint must lie on the pipe's
+        own axis line through the tee centre.  Using the tee port axis instead
+        causes a perpendicular offset whenever the branch pipe doesn't start
+        in the same direction as the tee port axis (e.g. when the router
+        routes the branch segment in a different direction than the tee stub).
+        """
         components = segment.get("components", [])
         if not isinstance(components, list) or not components:
             return
         from_port = segment.get("from_port")
         to_port = segment.get("to_port")
+
         if isinstance(from_port, str) and from_port.startswith("tee_"):
             tee_id = self.tee_id_from_port(from_port)
             tee = tee_map.get(tee_id or "")
             first = self.first_pipe(components)  # type: ignore[arg-type]
             if tee and first:
-                wc = self.tee_port_wc(tee, from_port)
-                if wc:
-                    first["wc_start"] = wc
+                pipe_axis = str(first.get("axis", ""))
+                if pipe_axis:
+                    # departing: port face is in the pipe's travel direction
+                    first["wc_start"] = self.tee_port_wc_for_pipe(
+                        tee, from_port, pipe_axis, arriving=False
+                    )
                     self._update_pipe_length_m(first)
+
         if isinstance(to_port, str) and to_port.startswith("tee_"):
             tee_id = self.tee_id_from_port(to_port)
             tee = tee_map.get(tee_id or "")
             last = self.last_pipe(components)  # type: ignore[arg-type]
             if tee and last:
-                wc = self.tee_port_wc(tee, to_port)
-                if wc:
-                    last["wc_end"] = wc
+                pipe_axis = str(last.get("axis", ""))
+                if pipe_axis:
+                    # arriving: port face is opposite to the pipe's travel direction
+                    last["wc_end"] = self.tee_port_wc_for_pipe(
+                        tee, to_port, pipe_axis, arriving=True
+                    )
                     self._update_pipe_length_m(last)
 
     @staticmethod

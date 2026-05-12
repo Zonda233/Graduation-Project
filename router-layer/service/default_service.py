@@ -33,7 +33,7 @@ class DefaultRouterService:
         placed_nodes = self.node_placer.place_nodes(typed_input, self.config)
         self.shell_snapper.apply(typed_input, placed_nodes, self.config)
         nx, ny, nz = self.config.grid_dimensions
-        grid = Grid3D(nx=nx, ny=ny, nz=nz, occupied=set())
+        grid = Grid3D(nx=nx, ny=ny, nz=nz, occupied=set(), voxel_size=self.config.voxel_size)
         line_routes = self.multi_line_router.route_all_lines(
             grid=grid,
             placed_nodes=placed_nodes,
