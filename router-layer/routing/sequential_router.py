@@ -26,6 +26,7 @@ class SequentialMultiLineRouter:
         results: LineRouteMap = {}
         node_by_id: Dict[str, NodeSpec] = {n.node_id: n for n in router_input.nodes}
         static_forbidden = self._custom_module_blocked_voxels(router_input, placed_nodes, config)
+        static_forbidden |= self._instrument_blocked_voxels(router_input, placed_nodes)
         forbidden: Set[Vc] = set(static_forbidden)
         for line in router_input.lines:
             line_id = line.line_id
@@ -105,6 +106,26 @@ class SequentialMultiLineRouter:
                 for y in range(oy, oy + extent[1]):
                     for z in range(oz, oz + extent[2]):
                         blocked.add((x, y, z))
+        return blocked
+
+    @staticmethod
+    def _instrument_blocked_voxels(
+        router_input: RouterInput,
+        placed_nodes: Dict[str, PlacedNode],
+    ) -> Set[Vc]:
+        """Return the voxel footprint of every InlineInstrument placed node.
+
+        These voxels are added to the static ``forbidden`` set before any line
+        is routed so that the path-finder cannot thread a pipe through an
+        instrument body.
+        """
+        blocked: Set[Vc] = set()
+        for node in router_input.nodes:
+            if node.node_type != "InlineInstrument":
+                continue
+            if node.node_id not in placed_nodes:
+                continue
+            blocked.add(placed_nodes[node.node_id].vc)
         return blocked
 
     @staticmethod

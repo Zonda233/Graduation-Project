@@ -147,21 +147,55 @@ line is routed:
 2. If `safety_margin_voxels > 0`, the path is dilated by that many voxels in
    all 6 directions (Manhattan dilation) before blocking.
 
-**Custom module blocking:**
-If a node is of type `CustomModule`, its entire voxel bounding box (extent +
-clearance) is blocked before routing begins, preventing pipes from passing
-through equipment bodies.
+Before the first line is routed, a **static forbidden set** is built from two
+sources and merged into the initial `forbidden` set:
+
+### 3.7.1 Custom module blocking
+
+Source: [`SequentialMultiLineRouter._custom_module_blocked_voxels()`](../../router-layer/routing/sequential_router.py:80)
+
+If a node is of type `EquipmentPort` with `asset_type == "custom_module"`, its
+entire voxel bounding box is blocked, preventing pipes from passing through
+equipment bodies.
 
 The bounding box is computed as:
 ```
-box_min[i] = center_vc[i] - floor(extent[i] / 2) - clearance
-box_max[i] = center_vc[i] + floor(extent[i] / 2) + clearance
+box_min[i] = center_vc[i] - floor(extent[i] / 2)
+box_max[i] = center_vc[i] + floor(extent[i] / 2)
 ```
 
 where `center_vc` is derived from the node's `wc_center` property:
 ```
 center_vc[i] = floor((wc_center[i] - origin[i]) / voxel_size)
 ```
+
+### 3.7.2 InlineInstrument voxel blocking (Bug 6 fix)
+
+Source: [`SequentialMultiLineRouter._instrument_blocked_voxels()`](../../router-layer/routing/sequential_router.py:110)
+
+Every node of type `InlineInstrument` occupies exactly one voxel (its placed
+`vc`). That voxel is added to the static forbidden set before routing begins.
+
+**Root cause of Bug 6:** `SimpleNodePlacer.place_nodes()` tracked placed
+instrument voxels in a local `occupied` set that was never transferred to the
+router's `forbidden` set. As a result, the path-finder could route a pipe
+straight through an instrument body (e.g. `seg_L_branch_module_c00` passing
+through `inst_TI101` at voxel `(10, 10, 0)`).
+
+**Fix:** `_instrument_blocked_voxels()` iterates over all nodes in
+`router_input`, selects those with `node_type == "InlineInstrument"`, and
+returns their placed voxel coordinates. These are unioned into `forbidden`
+alongside the custom-module voxels before the first `find_path` call:
+
+```python
+static_forbidden  = self._custom_module_blocked_voxels(router_input, placed_nodes, config)
+static_forbidden |= self._instrument_blocked_voxels(router_input, placed_nodes)
+forbidden: Set[Vc] = set(static_forbidden)
+```
+
+**Verified result:** After the fix, `seg_L_branch_module_c00` terminates at
+`vc_end = (10, 13, 0)` and routes around `inst_TI101` at `(10, 10, 0)` via
+elbows, eliminating the penetration.
 
 ---
 
