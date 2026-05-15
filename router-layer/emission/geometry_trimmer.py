@@ -68,6 +68,60 @@ class PipeAndTeeGeometryTrimmer:
                 next_pipe = components[idx + 1]
                 next_pipe["wc_start"] = VoxelGeometryMaps.shift_wc(corner, axis_out, trim)
                 self._update_pipe_length_m(next_pipe)
+        self.trim_pipes_around_inline_components(components)
+
+    # ------------------------------------------------------------------
+    # Valve / Reducer face trimming
+    # ------------------------------------------------------------------
+
+    _INLINE_TYPES = frozenset({"Valve", "Reducer"})
+
+    def trim_pipes_around_inline_components(
+        self,
+        components: List[Dict[str, object]],
+    ) -> None:
+        """Trim pipes adjacent to Valve or Reducer components to their faces.
+
+        A Valve/Reducer occupies exactly one voxel.  Its ``wc_start`` and
+        ``wc_end`` are the two face centres of that voxel along the flow axis.
+        The pipe immediately *before* the component must end at ``wc_start``
+        (not at the voxel centre), and the pipe immediately *after* must start
+        at ``wc_end``.
+
+        This pass runs **after** :meth:`trim_pipes_around_elbows` so that
+        elbow trimming on the same pipe is not undone.
+        """
+        for idx, comp in enumerate(components):
+            if comp.get("type") not in self._INLINE_TYPES:
+                continue
+            comp_wc_start = list(comp["wc_start"])  # type: ignore[list-item]
+            comp_wc_end   = list(comp["wc_end"])    # type: ignore[list-item]
+
+            # The pipe immediately before this component ends at wc_start.
+            if idx - 1 >= 0 and components[idx - 1].get("type") == "Pipe":
+                prev_pipe = components[idx - 1]
+                prev_pipe["wc_end"] = comp_wc_start
+                self._update_pipe_length_m(prev_pipe)
+                log.debug(
+                    "Trimmed %s wc_end to %s face of %s %s",
+                    prev_pipe.get("comp_id"),
+                    comp.get("type"),
+                    comp.get("comp_id"),
+                    comp_wc_start,
+                )
+
+            # The pipe immediately after this component starts at wc_end.
+            if idx + 1 < len(components) and components[idx + 1].get("type") == "Pipe":
+                next_pipe = components[idx + 1]
+                next_pipe["wc_start"] = comp_wc_end
+                self._update_pipe_length_m(next_pipe)
+                log.debug(
+                    "Trimmed %s wc_start to %s face of %s %s",
+                    next_pipe.get("comp_id"),
+                    comp.get("type"),
+                    comp.get("comp_id"),
+                    comp_wc_end,
+                )
 
     @staticmethod
     def first_pipe(components: List[Dict[str, object]]) -> Optional[Dict[str, object]]:

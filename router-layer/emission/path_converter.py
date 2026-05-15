@@ -74,7 +74,42 @@ class GenerationPathComponentConverter:
         components: List[Dict[str, object]] = []
         comp_index = 0
         axis_map = VoxelGeometryMaps.AXIS_BY_DELTA
+
+        # ------------------------------------------------------------------
+        # Case A: special voxel at path[0] (reducer/valve is the start node).
+        # Emit the special component first, then let the main loop handle the
+        # rest of the path starting from path[1].
+        # ------------------------------------------------------------------
         i = 0
+        if path[0] in special_vcs and len(path) >= 2:
+            start_vc = path[0]
+            tag = special_vcs[start_vc]
+            axis = axis_map.get(self._delta(path[0], path[1]))
+            if axis:
+                comp_id_special = f"{segment_id}_c{comp_index:02d}"
+                comp_index += 1
+                if tag == "Valve":
+                    components.append(
+                        self._build_valve_component(
+                            comp_id=comp_id_special,
+                            center=start_vc,
+                            axis=axis,
+                            nominal_diameter_m=nominal_diameter_m,
+                            subtype=valve_subtype or "Gate",
+                        )
+                    )
+                elif tag == "Reducer":
+                    spec = reducer_map.get(start_vc, {})
+                    components.append(
+                        self._build_reducer_component(
+                            comp_id=comp_id_special,
+                            center=start_vc,
+                            axis=axis,
+                            diameter_in_m=spec.get("diameter_in_m", nominal_diameter_m),
+                            diameter_out_m=spec.get("diameter_out_m", nominal_diameter_m),
+                        )
+                    )
+                i = 1  # main loop starts from path[1]
 
         while i < len(path) - 1:
             start = path[i]
@@ -85,11 +120,14 @@ class GenerationPathComponentConverter:
                 continue
 
             # Check if the *next* voxel (path[i+1]) is a special injection point.
-            # If so, emit a single-voxel pipe up to that point, then the special
-            # component, then continue from there.
+            # If so, emit a single-voxel approach pipe up to that point, then the
+            # special component, then continue from there.
+            # Case B (middle): next_vc is not the last voxel — continue normally.
+            # Case C (end):    next_vc IS the last voxel — emit approach pipe +
+            #                  special component as the final two components.
             next_vc = path[i + 1]
-            if next_vc in special_vcs and i + 1 < len(path) - 1:
-                # Emit pipe from start → next_vc (length = 1 voxel)
+            if next_vc in special_vcs:
+                # Emit approach pipe from start → next_vc (1 voxel)
                 length_m = self._config.voxel_size * 1
                 comp_id = f"{segment_id}_c{comp_index:02d}"
                 comp_index += 1
@@ -128,17 +166,23 @@ class GenerationPathComponentConverter:
                             diameter_out_m=spec.get("diameter_out_m", nominal_diameter_m),
                         )
                     )
-                i += 1  # advance past the special voxel; next iteration starts from next_vc
+                # Advance past the special voxel.  If next_vc was the last voxel
+                # (Case C), i becomes len(path)-1 and the while-loop exits cleanly.
+                i += 1
                 continue
 
             # Normal run: extend straight segment as far as the direction holds.
+            # Track *why* the loop stopped: "direction_change" or "special_voxel".
             j = i + 1
+            stop_reason = "end_of_path"
             while j < len(path) - 1:
                 # Stop before a special voxel so it gets its own component.
                 if path[j + 1] in special_vcs:
+                    stop_reason = "special_voxel"
                     break
                 d = self._delta(path[j], path[j + 1])
                 if d != delta:
+                    stop_reason = "direction_change"
                     break
                 j += 1
 
@@ -156,7 +200,11 @@ class GenerationPathComponentConverter:
                     straight_type=straight_type,
                 )
             )
-            if j < len(path) - 1:
+            # Only emit an Elbow when the run stopped because the direction
+            # changed.  If it stopped because a special voxel (Valve/Reducer)
+            # is next, no elbow is needed — the injection branch will handle
+            # the next iteration.
+            if stop_reason == "direction_change":
                 next_delta = self._delta(path[j], path[j + 1])
                 axis_out = axis_map.get(next_delta)
                 if axis_out:

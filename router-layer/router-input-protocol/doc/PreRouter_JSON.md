@@ -60,7 +60,7 @@
 
 ## 4. `nodes` 块
 
-图的顶点，表示“管线可连接的位置”。设备端口建议为独立 node，便于与生成层 `assets[].ports`、`from_port`/`to_port` 一致。
+图的顶点，表示"管线可连接的位置"。设备端口建议为独立 node，便于与生成层 `assets[].ports`、`from_port`/`to_port` 一致。
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
@@ -74,14 +74,25 @@
 | `location_2d` | object | ❌ | P&ID 上近似位置，如 `{ "x", "y", "space": "diagram_2d" }` |
 | `placement_hint` | object | ❌ | 放置提示（NodePlacer 使用）：如 `z_layers`、`anchor_policy`、`direction_preferred` |
 | `bbox_hint` | object | ❌ | 体素占用提示：如 `extent_voxels:[ex,ey,ez]`、`clearance_voxels`（粗粒度 AABB） |
-| `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；`InlineInstrument` 可携带 `instrument_kind`/`nominal_diameter_mm`；`EquipmentPort` 可携带 `asset_type="custom_module"`、`port_local_wc`（局部端口坐标）、`port_kind` |
+| `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；`InlineInstrument` 可携带 `instrument_kind`/`nominal_diameter_mm`；`EquipmentPort` 可携带 `asset_type="custom_module"`、`port_local_wc`（局部端口坐标）、`port_kind`；`InlineReducer` 可携带 `nominal_diameter_in_mm`/`nominal_diameter_out_mm` |
 | `extra` | object | ❌ | 扩展 |
+
+### 4.1 `type` 枚举
+
+| 值 | 说明 |
+|----|------|
+| `Equipment` | 设备本体（罐、泵、换热器等）；路由层将其体素 AABB 加入禁行集 |
+| `EquipmentPort` | 设备端口（罐、泵、换热器等的接管口） |
+| `InlineInstrument` | 管道内嵌仪表（流量计、压力表等）；路由层将其体素加入禁行集，并在生成层输出 `Instrument` asset |
+| `InlineReducer` | 管道内嵌变径管；路由层将其体素加入禁行集，并在生成层对应 segment 中注入 `Reducer` 组件 |
+| `Junction` | 逻辑连接点（三通分支点，对应 `via_nodes`） |
+| `Boundary` | 装置边界点（Battery Limit） |
 
 ---
 
 ## 5. `lines` 块
 
-逻辑工艺管线。一条 line 可能经 via_nodes 分支，路由后拆成多段 segment + tee_joints；变径、管帽由直径变化点与“无下游端点”表达。
+逻辑工艺管线。一条 line 可能经 via_nodes 分支，路由后拆成多段 segment + tee_joints；变径、管帽由直径变化点与"无下游端点"表达。
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
@@ -101,7 +112,7 @@
 | `phase` | string | ❌ | 介质状态：`gas` \| `liquid` \| `steam` \| `two_phase` |
 | `allow_backflow` | boolean | ❌ | 是否允许倒流；若 false 可要求止回阀 |
 | `requires_check_valve` | boolean | ❌ | 是否需设止回阀 |
-| `valve_subtype` | string | ❌ | 线上阀门类型（Demo）：`Gate` \| `Ball` |
+| `valve_subtype` | string | ❌ | 管线上阀门类型：`Gate` \| `Ball`。路由层自动在路径中点体素注入一个 `Valve` 组件，并将两侧直管端点裁剪到阀门面（`wc_start`/`wc_end`）。 |
 | `with_flanges` | boolean | ❌ | 是否带法兰（预留字段；当前路由层生成的 JSON 一律输出为 `false`，以避免弯头/三通处多余法兰，后续将改为端口级 `flange_spec` 控制） |
 | `is_relief_line` | boolean | ❌ | 是否泄压线（安全阀/爆破片出口） |
 | `properties` | object | ❌ | 其他工艺属性 |
@@ -140,5 +151,39 @@
 - **line.tag / spec / nominal_diameter_mm** → 生成层 segments[].spec、display_name
 - **fluid_class / layout_type** → 供 GB 50316 规则引擎与 Router 代价/禁行区使用
 - **InlineInstrument + instrument_signal** → 生成层 `assets[].type="Instrument"`（`ports[].port_id=node.id`）与信号段直段 `type="SignalLine"`，弯头仍为 `Elbow`
+- **InlineReducer node** → 路由层将该体素加入禁行集（管道不穿过），并在对应 segment 的 components 中注入 `type="Reducer"` 组件；`Reducer.wc_start`/`wc_end` 跨越该体素的两个面，两侧直管端点裁剪到 Reducer 面
+- **line.valve_subtype** → 路由层在路径中点体素注入 `type="Valve"` 组件（`subtype="Gate"` 或 `"Ball"`）；`Valve.wc_start`/`wc_end` 跨越该体素的两个面，两侧直管端点裁剪到 Valve 面
+
+### 8.1 Valve 组件生成层字段
+
+```json
+{
+  "comp_id": "seg_L_001_c04",
+  "type": "Valve",
+  "subtype": "Gate",
+  "vc_start": [5, 3, 1],
+  "vc_end":   [5, 3, 1],
+  "wc_start": [1.0, 0.7, 0.3],
+  "wc_end":   [1.2, 0.7, 0.3],
+  "axis": "+X",
+  "nominal_diameter": 0.08
+}
+```
+
+### 8.2 Reducer 组件生成层字段
+
+```json
+{
+  "comp_id": "seg_L_002_c02",
+  "type": "Reducer",
+  "vc_start": [3, 2, 1],
+  "vc_end":   [3, 2, 1],
+  "wc_start": [0.6, 0.5, 0.3],
+  "wc_end":   [0.8, 0.5, 0.3],
+  "axis": "+X",
+  "diameter_in_m": 0.08,
+  "diameter_out_m": 0.05
+}
+```
 
 详见项目内设计理由文档与 `chemical-piping-lib` 的 `Final_JSON.md`。

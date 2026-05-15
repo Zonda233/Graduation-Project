@@ -305,6 +305,255 @@ def test_end_to_end_valve_in_output():
 
 
 # ---------------------------------------------------------------------------
+# Trim correctness — pipes adjacent to Valve/Reducer must end at component face
+# ---------------------------------------------------------------------------
+
+def test_valve_adjacent_pipes_trimmed_to_face():
+    """Pipes on either side of a Valve must end/start at the valve's wc_start/wc_end.
+
+    Before the fix, the pipe before the valve had wc_end = vc_to_wc(valve_vc)
+    (the voxel centre), which extends into the valve body.  After the fix,
+    wc_end must equal valve.wc_start and wc_start of the following pipe must
+    equal valve.wc_end.
+    """
+    voxel_size = 0.2
+    conv = _make_converter(voxel_size)
+    # 7-voxel straight path along +x; valve injected at midpoint voxel (3,0,0)
+    path = [(x, 0, 0) for x in range(7)]
+
+    components = conv.convert(
+        path=path,
+        segment_id="seg_trim",
+        nominal_diameter_m=0.08,
+        valve_subtype="Gate",
+    )
+
+    valve = next(c for c in components if c["type"] == "Valve")
+    valve_idx = components.index(valve)
+
+    # Pipe immediately before the valve
+    assert valve_idx > 0 and components[valve_idx - 1]["type"] == "Pipe", (
+        "Expected a Pipe immediately before the Valve"
+    )
+    pipe_before = components[valve_idx - 1]
+    assert pipe_before["wc_end"] == valve["wc_start"], (
+        f"Pipe before valve: wc_end {pipe_before['wc_end']} != valve wc_start {valve['wc_start']}"
+    )
+
+    # Pipe immediately after the valve
+    assert valve_idx + 1 < len(components) and components[valve_idx + 1]["type"] == "Pipe", (
+        "Expected a Pipe immediately after the Valve"
+    )
+    pipe_after = components[valve_idx + 1]
+    assert pipe_after["wc_start"] == valve["wc_end"], (
+        f"Pipe after valve: wc_start {pipe_after['wc_start']} != valve wc_end {valve['wc_end']}"
+    )
+    print(f"  [PASS] test_valve_adjacent_pipes_trimmed_to_face  "
+          f"(pipe_before.wc_end={pipe_before['wc_end']}, "
+          f"valve.wc_start={valve['wc_start']}, "
+          f"valve.wc_end={valve['wc_end']}, "
+          f"pipe_after.wc_start={pipe_after['wc_start']})")
+
+
+def test_reducer_adjacent_pipes_trimmed_to_face():
+    """Pipes on either side of a Reducer must end/start at the reducer's wc_start/wc_end."""
+    voxel_size = 0.2
+    conv = _make_converter(voxel_size)
+    path = [(x, 0, 0) for x in range(7)]
+    reducer_vc = (3, 0, 0)
+
+    components = conv.convert(
+        path=path,
+        segment_id="seg_reducer_trim",
+        nominal_diameter_m=0.08,
+        reducer_vcs={reducer_vc: {"diameter_in_m": 0.08, "diameter_out_m": 0.05}},
+    )
+
+    reducer = next(c for c in components if c["type"] == "Reducer")
+    reducer_idx = components.index(reducer)
+
+    assert reducer_idx > 0 and components[reducer_idx - 1]["type"] == "Pipe", (
+        "Expected a Pipe immediately before the Reducer"
+    )
+    pipe_before = components[reducer_idx - 1]
+    assert pipe_before["wc_end"] == reducer["wc_start"], (
+        f"Pipe before reducer: wc_end {pipe_before['wc_end']} != reducer wc_start {reducer['wc_start']}"
+    )
+
+    assert reducer_idx + 1 < len(components) and components[reducer_idx + 1]["type"] == "Pipe", (
+        "Expected a Pipe immediately after the Reducer"
+    )
+    pipe_after = components[reducer_idx + 1]
+    assert pipe_after["wc_start"] == reducer["wc_end"], (
+        f"Pipe after reducer: wc_start {pipe_after['wc_start']} != reducer wc_end {reducer['wc_end']}"
+    )
+    print(f"  [PASS] test_reducer_adjacent_pipes_trimmed_to_face  "
+          f"(pipe_before.wc_end={pipe_before['wc_end']}, "
+          f"reducer.wc_start={reducer['wc_start']}, "
+          f"reducer.wc_end={reducer['wc_end']}, "
+          f"pipe_after.wc_start={pipe_after['wc_start']})")
+
+
+def test_no_spurious_elbow_before_valve():
+    """Regression for Bug 10: no spurious same-axis Elbow should appear before a Valve.
+
+    Before the fix, the normal-run loop stopped one voxel before the valve and
+    emitted a spurious Elbow with axis_in == axis_out (a degenerate 0-degree
+    elbow), which also truncated the preceding pipe to only 1 voxel.
+
+    The injection design intentionally emits a 1-voxel "approach pipe" from
+    path[j] to valve_vc before the Valve component.  The long pipe before that
+    approach pipe must start at path[0] (not be truncated), and no Elbow with
+    axis_in == axis_out must appear anywhere in the component list.
+
+    Path: 10 voxels along +X, valve at midpoint (index 5).
+    Expected component sequence: [Pipe(0→4), Pipe(4→5), Valve(5), Pipe(5→9)]
+    """
+    voxel_size = 0.2
+    conv = _make_converter(voxel_size)
+    # 10-voxel straight path along +X; valve injected at midpoint voxel (5,0,0)
+    path = [(x, 0, 0) for x in range(10)]
+
+    components = conv.convert(
+        path=path,
+        segment_id="seg_fullrun",
+        nominal_diameter_m=0.08,
+        valve_subtype="Gate",
+    )
+
+    types = [c["type"] for c in components]
+
+    # No Elbow should have axis_in == axis_out (that would be the spurious one)
+    for comp in components:
+        if comp["type"] == "Elbow":
+            assert comp["axis_in"] != comp["axis_out"], (
+                f"Spurious elbow with axis_in == axis_out: {comp}"
+            )
+
+    valve = next(c for c in components if c["type"] == "Valve")
+    valve_idx = components.index(valve)
+
+    # The approach pipe (immediately before the valve) is always 1 voxel by design.
+    # The pipe before *that* (the long run) must start at path[0] = (0,0,0),
+    # not be truncated to start at path[j-1].
+    # With a 10-voxel path and valve at index 5, the sequence is:
+    #   Pipe(0→4) [4 hops], Pipe(4→5) [1 hop approach], Valve(5), Pipe(5→9)
+    assert valve_idx >= 2, "Expected at least 2 pipes before the valve"
+    long_pipe = components[valve_idx - 2]
+    assert long_pipe["type"] == "Pipe", (
+        f"Expected a Pipe two positions before the Valve, got {long_pipe['type']}"
+    )
+    vc_start = long_pipe["vc_start"]
+    vc_end   = long_pipe["vc_end"]
+    hops = abs(vc_end[0] - vc_start[0]) + abs(vc_end[1] - vc_start[1]) + abs(vc_end[2] - vc_start[2])
+    assert hops > 1, (
+        f"Long pipe before valve is only {hops} voxel(s) — expected it to span "
+        f"the full run up to the approach voxel. vc_start={vc_start}, vc_end={vc_end}"
+    )
+    assert list(vc_start) == [0, 0, 0], (
+        f"Long pipe should start at path[0]=(0,0,0), got vc_start={vc_start}"
+    )
+
+    print(f"  [PASS] test_no_spurious_elbow_before_valve  "
+          f"(types={types}, long_pipe hops={hops}, "
+          f"vc_start={vc_start}, vc_end={vc_end})")
+
+
+# ---------------------------------------------------------------------------
+# Bug 11 — InlineReducer as line endpoint (reducer at path[0] or path[-1])
+# ---------------------------------------------------------------------------
+
+def test_reducer_at_path_end():
+    """Regression for Bug 11 (Case C): reducer is the last voxel of the path.
+
+    Topology: L_001 ends at reducer_vc (reducer is to_node).
+    The path for L_001 is [port_out, ..., reducer_vc].
+    Before the fix, the guard ``i + 1 < len(path) - 1`` excluded injection
+    when next_vc was path[-1], so the reducer was silently dropped.
+
+    Expected component sequence: [Pipe(path[0]→reducer_vc−1), Pipe(approach), Reducer(reducer_vc)]
+    i.e. the last component must be a Reducer, not a Pipe.
+    """
+    conv = _make_converter()
+    # 5-voxel path along +X; reducer is the last voxel (4,0,0)
+    path = [(x, 0, 0) for x in range(5)]
+    reducer_vc = path[-1]  # (4, 0, 0)
+
+    components = conv.convert(
+        path=path,
+        segment_id="seg_end_reducer",
+        nominal_diameter_m=0.08,
+        reducer_vcs={reducer_vc: {"diameter_in_m": 0.10, "diameter_out_m": 0.08}},
+    )
+
+    types = [c["type"] for c in components]
+    assert "Reducer" in types, (
+        f"Bug 11 (Case C): Reducer at path[-1] was not injected. Got types: {types}"
+    )
+
+    reducer = next(c for c in components if c["type"] == "Reducer")
+    assert reducer["vc_start"] == list(reducer_vc), (
+        f"Reducer vc_start should be {reducer_vc}, got {reducer['vc_start']}"
+    )
+    assert abs(reducer["diameter_in_m"]  - 0.10) < 1e-9
+    assert abs(reducer["diameter_out_m"] - 0.08) < 1e-9
+
+    # The last component must be the Reducer (nothing follows it in this segment)
+    assert components[-1]["type"] == "Reducer", (
+        f"Expected last component to be Reducer, got {components[-1]['type']}"
+    )
+    print(f"  [PASS] test_reducer_at_path_end  "
+          f"(types={types}, reducer.vc_start={reducer['vc_start']})")
+
+
+def test_reducer_at_path_start():
+    """Regression for Bug 11 (Case A): reducer is the first voxel of the path.
+
+    Topology: L_002 starts at reducer_vc (reducer is from_node).
+    The path for L_002 is [reducer_vc, ..., port_in].
+    Before the fix, path[0] was never checked as next_vc in the main loop,
+    so the reducer was silently dropped.
+
+    Expected component sequence: [Reducer(reducer_vc), Pipe(reducer_vc→path[-1])]
+    i.e. the first component must be a Reducer.
+    """
+    conv = _make_converter()
+    # 5-voxel path along +X; reducer is the first voxel (0,0,0)
+    path = [(x, 0, 0) for x in range(5)]
+    reducer_vc = path[0]  # (0, 0, 0)
+
+    components = conv.convert(
+        path=path,
+        segment_id="seg_start_reducer",
+        nominal_diameter_m=0.08,
+        reducer_vcs={reducer_vc: {"diameter_in_m": 0.10, "diameter_out_m": 0.08}},
+    )
+
+    types = [c["type"] for c in components]
+    assert "Reducer" in types, (
+        f"Bug 11 (Case A): Reducer at path[0] was not injected. Got types: {types}"
+    )
+
+    reducer = next(c for c in components if c["type"] == "Reducer")
+    assert reducer["vc_start"] == list(reducer_vc), (
+        f"Reducer vc_start should be {reducer_vc}, got {reducer['vc_start']}"
+    )
+    assert abs(reducer["diameter_in_m"]  - 0.10) < 1e-9
+    assert abs(reducer["diameter_out_m"] - 0.08) < 1e-9
+
+    # The first component must be the Reducer
+    assert components[0]["type"] == "Reducer", (
+        f"Expected first component to be Reducer, got {components[0]['type']}"
+    )
+    # Must be followed by a Pipe
+    assert len(components) >= 2 and components[1]["type"] == "Pipe", (
+        f"Expected Pipe after Reducer, got {components[1]['type'] if len(components) > 1 else 'nothing'}"
+    )
+    print(f"  [PASS] test_reducer_at_path_start  "
+          f"(types={types}, reducer.vc_start={reducer['vc_start']})")
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -318,6 +567,11 @@ TESTS = [
     test_no_reducer_without_reducer_vcs,
     test_valve_and_reducer_coexist,
     test_end_to_end_valve_in_output,
+    test_valve_adjacent_pipes_trimmed_to_face,
+    test_reducer_adjacent_pipes_trimmed_to_face,
+    test_no_spurious_elbow_before_valve,
+    test_reducer_at_path_end,
+    test_reducer_at_path_start,
 ]
 
 

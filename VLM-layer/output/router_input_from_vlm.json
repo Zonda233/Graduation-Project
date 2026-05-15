@@ -10,6 +10,9 @@
       "temperature": "degC"
     }
   },
+  "plant": {
+    "unit_id": "UNIT_01"
+  },
   "nodes": [
     {
       "id": "port_tanka_out",
@@ -26,24 +29,12 @@
       "equipment_ref": "TankB"
     },
     {
-      "id": "junc_between_valves",
-      "type": "Junction",
-      "role": "intermediate",
-      "label": "Valve Interconnection"
-    },
-    {
-      "id": "port_tanka_signal",
-      "type": "EquipmentPort",
-      "role": "signal",
-      "label": "TankA Signal Port",
-      "equipment_ref": "TankA"
-    },
-    {
-      "id": "inst_ti_101",
-      "type": "InlineInstrument",
-      "label": "TI-101",
+      "id": "reducer_001",
+      "type": "InlineReducer",
+      "label": "Reducer DN100→DN50",
       "properties": {
-        "instrument_kind": "thermometer"
+        "nominal_diameter_in_mm": 100,
+        "nominal_diameter_out_mm": 50
       }
     }
   ],
@@ -51,27 +42,17 @@
     {
       "id": "L_001",
       "from_node": "port_tanka_out",
-      "to_node": "junc_between_valves",
+      "to_node": "reducer_001",
       "service": "Fluid",
       "nominal_diameter_mm": 100,
-      "with_flanges": false,
-      "valve_subtype": "Gate"
+      "with_flanges": false
     },
     {
       "id": "L_002",
-      "from_node": "junc_between_valves",
+      "from_node": "reducer_001",
       "to_node": "port_tankb_in",
       "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": false,
-      "valve_subtype": "Ball"
-    },
-    {
-      "id": "L_sig_001",
-      "from_node": "inst_ti_101",
-      "to_node": "port_tanka_signal",
-      "service": "instrument_signal",
-      "nominal_diameter_mm": 6,
+      "nominal_diameter_mm": 50,
       "with_flanges": false
     }
   ],

@@ -59,12 +59,13 @@
 - 当前为**顺序 A\***：按 `lines` 顺序逐条寻路，已布路径体素写入“禁行”集合。
 - **共享节点**（如三通 `via_nodes`）会从禁行集合中排除，否则后布管线无法以该点作为起点/终点，导致只出现一根管。详见 `pathfinder.py` 中对 start/goal/via 的排除逻辑。
 
-## 几何裁剪约定（弯头/三通）
+## 几何裁剪约定（弯头/三通/阀门/变径管）
 
-- 路由输出现在会对 `segments.components` 做**几何裁剪**，避免“直管伸进弯头/三通实体”：
+- 路由输出现在会对 `segments.components` 做**几何裁剪**，避免"直管伸进组件实体"：
   - **Elbow 邻接 Pipe 裁剪**：相邻直管端点不再落在体素拐点，而是落在弯头切点；输出 `Elbow.bend_radius_m`，并按 `bend_radius_m + elbow_overlap_m` 裁剪前后直管。
   - **Tee 邻接 Pipe 裁剪**：连接到 `tee_*_run_a/run_b/branch` 的直管端点不再落在 tee 中心，而是落在 tee 三个端口的几何位置（偏移由 `tee_run_half_length_factor` / `tee_branch_half_length_factor` 控制）。
-- 说明：`vc_*` 仍用于拓扑/调试，实际几何拼接以 `wc_*` 为准；因此出现 “`wc_start/wc_end` 与 `vc_start/vc_end` 不完全重合” 是预期行为。
+  - **Valve / Reducer 邻接 Pipe 裁剪**：Valve 和 Reducer 各占一个体素，其 `wc_start`/`wc_end` 是该体素沿流向的两个面心。紧邻的前一段直管的 `wc_end` 被裁剪到 `component.wc_start`，紧邻的后一段直管的 `wc_start` 被裁剪到 `component.wc_end`，确保直管与组件面精确对齐，不穿插也不留缝。
+- 说明：`vc_*` 仍用于拓扑/调试，实际几何拼接以 `wc_*` 为准；因此出现 "`wc_start/wc_end` 与 `vc_start/vc_end` 不完全重合" 是预期行为。
 - 上述裁剪参数均已配置化，定义在 `RouterConfig`：`elbow_overlap_m`、`tee_run_half_length_factor`、`tee_branch_half_length_factor`。
 
 ## 目录与运行测试
@@ -72,7 +73,8 @@
 | 路径 | 说明 |
 |------|------|
 | `router-input-protocol/` | 进入 Router 前的协议定义与示例 JSON。 |
-| `tests/test_router_to_generation.py` | 测试脚本：读入示例 → 路由 → 写出生成层 JSON → Schema 校验；并输出 Blender 用代码片段。 |
+| `tests/test_router_to_generation.py` | 端到端测试脚本：读入示例 → 路由 → 写出生成层 JSON → Schema 校验；并输出 Blender 用代码片段。 |
+| `tests/test_valve_reducer.py` | 阀门/变径管注入与几何裁剪单元测试（11 个测试，含 Valve/Reducer 面裁剪正确性验证）。 |
 | `output/` | 测试生成的 JSON 输出目录（可加入 .gitignore）。 |
 
 在**项目根目录**执行：
@@ -82,6 +84,12 @@ python router-layer/tests/test_router_to_generation.py
 ```
 
 会生成 `router-layer/output/router_output_cooling_water.json`，并通过 chemical-piping-lib 的 `protocol_v1.json` 校验。
+
+阀门/变径管专项测试：
+
+```bash
+python router-layer/tests/test_valve_reducer.py
+```
 
 复杂样例可执行：
 
