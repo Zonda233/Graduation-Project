@@ -1,4 +1,4 @@
-"""End-to-end VLM pipeline with schema-validation retry loop.
+"""End-to-end VLM pipeline with schema-validation and routing retry loop.
 
 Pipeline stages
 ---------------
@@ -8,14 +8,20 @@ Pipeline stages
    - On failure: log the error, feed it back to the VLM, retry (up to
      ``max_retries`` times).
 4. Route through router-layer → generation JSON.
+   - On ``RuntimeError`` (routing failure): log the failure report, feed it
+     back to the VLM as a correction message, retry from step 2.
 5. Validate against generation schema.
    - On failure: log the error, feed it back to the VLM, retry from step 2.
 6. Persist both JSON files and return a ``PipelineResult``.
 
 Design notes
 ------------
-- Retry messages contain *only* the ``SchemaValidationError.message`` text
-  (the concise jsonschema error), never a full Python traceback.
+- Schema-validation retry messages contain only the ``SchemaValidationError.message``
+  text (the concise jsonschema error), never a full Python traceback.
+- Routing failure retry messages contain the full ``failure_report`` string
+  produced by ``DefaultRouterService`` — it lists each unrouted line with its
+  start/goal voxels and nearby occupied voxels so the VLM can adjust node
+  positions or remove conflicting lines.
 - Each retry attempt is logged at WARNING level so operators can monitor
   LLM correction quality.
 - ``max_retries`` defaults to 3; set to 0 to disable retries entirely.
@@ -70,16 +76,28 @@ class PipelineResult:
 # Retry helpers
 # ---------------------------------------------------------------------------
 
-_RETRY_PREAMBLE = (
+_SCHEMA_RETRY_PREAMBLE = (
     "你上一次的输出未通过 JSON Schema 校验，错误信息如下：\n\n"
     "{error}\n\n"
     "请根据上述错误修正输出，重新生成符合要求的 router_input_v1 JSON。"
     "只输出 JSON 对象本体，不要任何额外文字。"
 )
 
+_ROUTING_RETRY_PREAMBLE = (
+    "你上一次的输出在路由阶段失败，以下管线无法完成路径规划：\n\n"
+    "{report}\n\n"
+    "请根据上述失败信息调整节点位置或删除冲突管线，"
+    "重新生成符合要求的 router_input_v1 JSON。"
+    "只输出 JSON 对象本体，不要任何额外文字。"
+)
 
-def _make_correction_message(error_message: str) -> str:
-    return _RETRY_PREAMBLE.format(error=error_message)
+
+def _make_schema_correction_message(error_message: str) -> str:
+    return _SCHEMA_RETRY_PREAMBLE.format(error=error_message)
+
+
+def _make_routing_correction_message(failure_report: str) -> str:
+    return _ROUTING_RETRY_PREAMBLE.format(report=failure_report)
 
 
 # ---------------------------------------------------------------------------
@@ -153,14 +171,29 @@ def run_end_to_end(
                 attempt + 1,
                 exc.message,
             )
-            correction_message = _make_correction_message(exc.message)
+            correction_message = _make_schema_correction_message(exc.message)
             retry_count += 1
             if attempt < max_attempts - 1:
                 continue
             raise
 
         # --- route to generation JSON ---
-        generation_json = route_to_generation_json(repo_root, router_input)
+        try:
+            generation_json = route_to_generation_json(repo_root, router_input)
+        except RuntimeError as exc:
+            # route_to_generation_json raises RuntimeError whose message is the
+            # full failure_report produced by DefaultRouterService.
+            failure_report = str(exc)
+            logger.warning(
+                "routing failed (attempt %d):\n%s",
+                attempt + 1,
+                failure_report,
+            )
+            correction_message = _make_routing_correction_message(failure_report)
+            retry_count += 1
+            if attempt < max_attempts - 1:
+                continue
+            raise
 
         # --- validate generation schema ---
         try:
@@ -171,7 +204,7 @@ def run_end_to_end(
                 attempt + 1,
                 exc.message,
             )
-            correction_message = _make_correction_message(exc.message)
+            correction_message = _make_schema_correction_message(exc.message)
             retry_count += 1
             if attempt < max_attempts - 1:
                 continue

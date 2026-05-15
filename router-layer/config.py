@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal, Tuple
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, List, Literal, Tuple
+
+if TYPE_CHECKING:
+    # Avoid a circular import at runtime; RoutingRule only needed for type hints.
+    from .routing.routing_rule import RoutingRule
 
 
 @dataclass
@@ -28,4 +32,10 @@ class RouterConfig:
     elbow_overlap_m: float = 0.003
     tee_run_half_length_factor: float = 1.5
     tee_branch_half_length_factor: float = 1.25
+
+    # Injectable routing rules (Step 4 scaffold).
+    # Each rule's apply_to_grid() is called once before routing begins.
+    # Each rule's score_path() is reserved for future soft-constraint scoring.
+    # Default is an empty list (no extra rules beyond the hardcoded invariants).
+    rules: List["RoutingRule"] = field(default_factory=list)
 

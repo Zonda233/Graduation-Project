@@ -83,7 +83,7 @@
           "nominal_diameter": 0.1
         },
         {
-          "port_id": "port_TI101_signal",
+          "port_id": "port_tankA_TI",
           "role": "signal",
           "vc": [
             3,
@@ -100,7 +100,7 @@
           "logical_port_only": true
         },
         {
-          "port_id": "port_PI102_signal",
+          "port_id": "port_tankA_PI",
           "role": "signal",
           "vc": [
             3,
@@ -219,7 +219,7 @@
       ]
     },
     {
-      "id": "inst_TI101",
+      "id": "inst_TI_101",
       "type": "Instrument",
       "display_name": "温度指示器 TI-101",
       "instrument_kind": "thermometer",
@@ -234,7 +234,7 @@
       },
       "ports": [
         {
-          "port_id": "inst_TI101",
+          "port_id": "inst_TI_101",
           "role": "signal",
           "vc": [
             10,
@@ -252,7 +252,7 @@
       ]
     },
     {
-      "id": "inst_PI102",
+      "id": "inst_PI_102",
       "type": "Instrument",
       "display_name": "压力指示器 PI-102",
       "instrument_kind": "pressure_gauge",
@@ -267,7 +267,7 @@
       },
       "ports": [
         {
-          "port_id": "inst_PI102",
+          "port_id": "inst_PI_102",
           "role": "signal",
           "vc": [
             9,
@@ -447,7 +447,7 @@
     },
     {
       "id": "seg_L_branch_module",
-      "display_name": "P-002-80",
+      "display_name": "P-002-080",
       "from_port": "tee_01_branch",
       "to_port": "port_module_in",
       "spec": {
@@ -661,10 +661,10 @@
       ]
     },
     {
-      "id": "seg_L_sig_TI101",
+      "id": "seg_L_sig_temp",
       "display_name": "SIG-TI-101",
-      "from_port": "port_TI101_signal",
-      "to_port": "inst_TI101",
+      "from_port": "port_tankA_TI",
+      "to_port": "inst_TI_101",
       "spec": {
         "nominal_diameter": 0.006,
         "material_id": "mat_carbon_steel",
@@ -672,7 +672,7 @@
       },
       "components": [
         {
-          "comp_id": "seg_L_sig_TI101_c00",
+          "comp_id": "seg_L_sig_temp_c00",
           "type": "SignalLine",
           "vc_start": [
             3,
@@ -680,8 +680,8 @@
             1
           ],
           "vc_end": [
-            4,
-            15,
+            3,
+            10,
             1
           ],
           "wc_start": [
@@ -690,51 +690,7 @@
             0.30000000000000004
           ],
           "wc_end": [
-            0.9,
-            3.1,
-            0.30000000000000004
-          ],
-          "axis": "+X",
-          "length_m": 0.2
-        },
-        {
-          "comp_id": "seg_L_sig_TI101_c01",
-          "type": "Elbow",
-          "vc_center": [
-            4,
-            15,
-            1
-          ],
-          "wc_center": [
-            0.9,
-            3.1,
-            0.30000000000000004
-          ],
-          "axis_in": "+X",
-          "axis_out": "-Y",
-          "angle_deg": 90,
-          "bend_radius_m": 0.03201
-        },
-        {
-          "comp_id": "seg_L_sig_TI101_c02",
-          "type": "SignalLine",
-          "vc_start": [
-            4,
-            15,
-            1
-          ],
-          "vc_end": [
-            4,
-            10,
-            1
-          ],
-          "wc_start": [
-            0.9,
-            3.1,
-            0.30000000000000004
-          ],
-          "wc_end": [
-            0.9,
+            0.7000000000000001,
             2.1,
             0.30000000000000004
           ],
@@ -742,15 +698,15 @@
           "length_m": 1.0
         },
         {
-          "comp_id": "seg_L_sig_TI101_c03",
+          "comp_id": "seg_L_sig_temp_c01",
           "type": "Elbow",
           "vc_center": [
-            4,
+            3,
             10,
             1
           ],
           "wc_center": [
-            0.9,
+            0.7000000000000001,
             2.1,
             0.30000000000000004
           ],
@@ -760,10 +716,10 @@
           "bend_radius_m": 0.03201
         },
         {
-          "comp_id": "seg_L_sig_TI101_c04",
+          "comp_id": "seg_L_sig_temp_c02",
           "type": "SignalLine",
           "vc_start": [
-            4,
+            3,
             10,
             1
           ],
@@ -773,7 +729,7 @@
             1
           ],
           "wc_start": [
-            0.9,
+            0.7000000000000001,
             2.1,
             0.30000000000000004
           ],
@@ -783,10 +739,10 @@
             0.30000000000000004
           ],
           "axis": "+X",
-          "length_m": 1.2
+          "length_m": 1.4
         },
         {
-          "comp_id": "seg_L_sig_TI101_c05",
+          "comp_id": "seg_L_sig_temp_c03",
           "type": "Elbow",
           "vc_center": [
             10,
@@ -804,7 +760,7 @@
           "bend_radius_m": 0.03201
         },
         {
-          "comp_id": "seg_L_sig_TI101_c06",
+          "comp_id": "seg_L_sig_temp_c04",
           "type": "SignalLine",
           "vc_start": [
             10,
@@ -832,10 +788,10 @@
       ]
     },
     {
-      "id": "seg_L_sig_PI102",
+      "id": "seg_L_sig_press",
       "display_name": "SIG-PI-102",
-      "from_port": "port_PI102_signal",
-      "to_port": "inst_PI102",
+      "from_port": "port_tankA_PI",
+      "to_port": "inst_PI_102",
       "spec": {
         "nominal_diameter": 0.006,
         "material_id": "mat_carbon_steel",
@@ -843,7 +799,7 @@
       },
       "components": [
         {
-          "comp_id": "seg_L_sig_PI102_c00",
+          "comp_id": "seg_L_sig_press_c00",
           "type": "SignalLine",
           "vc_start": [
             3,
@@ -852,8 +808,8 @@
           ],
           "vc_end": [
             3,
-            14,
-            1
+            15,
+            0
           ],
           "wc_start": [
             0.7000000000000001,
@@ -862,67 +818,23 @@
           ],
           "wc_end": [
             0.7000000000000001,
-            2.9000000000000004,
-            0.30000000000000004
-          ],
-          "axis": "-Y",
-          "length_m": 0.2
-        },
-        {
-          "comp_id": "seg_L_sig_PI102_c01",
-          "type": "Elbow",
-          "vc_center": [
-            3,
-            14,
-            1
-          ],
-          "wc_center": [
-            0.7000000000000001,
-            2.9000000000000004,
-            0.30000000000000004
-          ],
-          "axis_in": "-Y",
-          "axis_out": "-Z",
-          "angle_deg": 90,
-          "bend_radius_m": 0.03201
-        },
-        {
-          "comp_id": "seg_L_sig_PI102_c02",
-          "type": "SignalLine",
-          "vc_start": [
-            3,
-            14,
-            1
-          ],
-          "vc_end": [
-            3,
-            14,
-            0
-          ],
-          "wc_start": [
-            0.7000000000000001,
-            2.9000000000000004,
-            0.30000000000000004
-          ],
-          "wc_end": [
-            0.7000000000000001,
-            2.9000000000000004,
+            3.1,
             0.1
           ],
           "axis": "-Z",
           "length_m": 0.2
         },
         {
-          "comp_id": "seg_L_sig_PI102_c03",
+          "comp_id": "seg_L_sig_press_c01",
           "type": "Elbow",
           "vc_center": [
             3,
-            14,
+            15,
             0
           ],
           "wc_center": [
             0.7000000000000001,
-            2.9000000000000004,
+            3.1,
             0.1
           ],
           "axis_in": "-Z",
@@ -931,11 +843,11 @@
           "bend_radius_m": 0.03201
         },
         {
-          "comp_id": "seg_L_sig_PI102_c04",
+          "comp_id": "seg_L_sig_press_c02",
           "type": "SignalLine",
           "vc_start": [
             3,
-            14,
+            15,
             0
           ],
           "vc_end": [
@@ -945,7 +857,7 @@
           ],
           "wc_start": [
             0.7000000000000001,
-            2.9000000000000004,
+            3.1,
             0.1
           ],
           "wc_end": [
@@ -954,10 +866,10 @@
             0.1
           ],
           "axis": "-Y",
-          "length_m": 2.2
+          "length_m": 2.4
         },
         {
-          "comp_id": "seg_L_sig_PI102_c05",
+          "comp_id": "seg_L_sig_press_c03",
           "type": "Elbow",
           "vc_center": [
             3,
@@ -975,7 +887,7 @@
           "bend_radius_m": 0.03201
         },
         {
-          "comp_id": "seg_L_sig_PI102_c06",
+          "comp_id": "seg_L_sig_press_c04",
           "type": "SignalLine",
           "vc_start": [
             3,

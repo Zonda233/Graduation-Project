@@ -134,7 +134,17 @@ def route_to_generation_json(
     from router_layer.service.default_service import DefaultRouterService        # noqa: PLC0415
 
     service = DefaultRouterService(json_emitter=SchemaCompliantJsonEmitter())
-    return service.route(router_input)
+    result = service.route(router_input)
+
+    if not result.success:
+        # Raise with the full diagnostic so callers (test harness, VLM loop)
+        # can inspect or display it.
+        raise RuntimeError(
+            f"Routing failed for {len(result.failures)} line(s):\n\n"
+            + (result.failure_report or "")
+        )
+
+    return result.output_json
 
 
 # ---------------------------------------------------------------------------

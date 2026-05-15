@@ -87,6 +87,27 @@ class ClearanceAwareShortestPathFinder:
             allowed = {start_vc, goal_vc}
             if via_vc:
                 allowed.update(via_vc)
+            # Also exempt the forced first-step voxel: if start_direction is set,
+            # _segment_with_directions will check grid.is_free(first_step) and
+            # return [] immediately if it's blocked.  A previously-routed path may
+            # have occupied that voxel, so we must allow it here.
+            if start_direction:
+                delta = self.DELTA_BY_AXIS.get(start_direction)
+                if delta:
+                    allowed.add((
+                        start_vc[0] + delta[0],
+                        start_vc[1] + delta[1],
+                        start_vc[2] + delta[2],
+                    ))
+            # Same logic for the forced last-step voxel (approach to goal).
+            if end_direction:
+                delta = self.DELTA_BY_AXIS.get(end_direction)
+                if delta:
+                    allowed.add((
+                        goal_vc[0] - delta[0],
+                        goal_vc[1] - delta[1],
+                        goal_vc[2] - delta[2],
+                    ))
             grid = grid.with_forbidden(v for v in forbidden if v not in allowed)
 
         # Compute minimum straight-run voxels between consecutive elbows.

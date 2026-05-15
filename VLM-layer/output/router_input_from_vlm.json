@@ -12,7 +12,8 @@
   },
   "plant": {
     "plant_id": "DEMO_PLANT",
-    "unit_id": "UNIT_001"
+    "unit_id": "UNIT_01",
+    "system_id": "SYS-TANK-TRANSFER"
   },
   "nodes": [
     {
@@ -35,13 +36,14 @@
       "id": "junc_tee_01",
       "type": "Junction",
       "role": "branch_point",
-      "label": "主管三通"
+      "label": "分配三通"
     },
     {
       "id": "port_module_in",
       "type": "EquipmentPort",
       "role": "inlet",
-      "label": "Module 入口",
+      "label": "模块入口",
+      "pid_tag": "Module",
       "equipment_ref": "Module",
       "properties": {
         "asset_type": "custom_module",
@@ -60,23 +62,23 @@
       }
     },
     {
-      "id": "port_TI101_signal",
+      "id": "port_tankA_TI",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "TI101 信号接口",
-      "pid_tag": "TI-101",
+      "label": "TankA 温度信号口",
+      "pid_tag": "TankA",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_PI102_signal",
+      "id": "port_tankA_PI",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "PI102 信号接口",
-      "pid_tag": "PI-102",
+      "label": "TankA 压力信号口",
+      "pid_tag": "TankA",
       "equipment_ref": "TankA"
     },
     {
-      "id": "inst_TI101",
+      "id": "inst_TI_101",
       "type": "InlineInstrument",
       "role": "indicator",
       "label": "温度指示器 TI-101",
@@ -85,7 +87,7 @@
       }
     },
     {
-      "id": "inst_PI102",
+      "id": "inst_PI_102",
       "type": "InlineInstrument",
       "role": "indicator",
       "label": "压力指示器 PI-102",
@@ -104,32 +106,38 @@
         "junc_tee_01"
       ],
       "service": "ProcessFluid",
+      "fluid": "GeneralFluid",
       "nominal_diameter_mm": 100,
-      "with_flanges": true
+      "with_flanges": true,
+      "layout_type": "above_ground",
+      "phase": "liquid"
     },
     {
       "id": "L_branch_module",
-      "tag": "P-002-80",
+      "tag": "P-002-080",
       "from_node": "junc_tee_01",
       "to_node": "port_module_in",
       "service": "ProcessFluid",
+      "fluid": "GeneralFluid",
       "nominal_diameter_mm": 80,
-      "with_flanges": true
+      "with_flanges": true,
+      "layout_type": "above_ground",
+      "phase": "liquid"
     },
     {
-      "id": "L_sig_TI101",
+      "id": "L_sig_temp",
       "tag": "SIG-TI-101",
-      "from_node": "port_TI101_signal",
-      "to_node": "inst_TI101",
+      "from_node": "port_tankA_TI",
+      "to_node": "inst_TI_101",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false
     },
     {
-      "id": "L_sig_PI102",
+      "id": "L_sig_press",
       "tag": "SIG-PI-102",
-      "from_node": "port_PI102_signal",
-      "to_node": "inst_PI102",
+      "from_node": "port_tankA_PI",
+      "to_node": "inst_PI_102",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false

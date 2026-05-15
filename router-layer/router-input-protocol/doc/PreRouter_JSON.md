@@ -77,8 +77,6 @@
 | `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；`InlineInstrument` 可携带 `instrument_kind`/`nominal_diameter_mm`；`EquipmentPort` 可携带 `asset_type="custom_module"`、`port_local_wc`（局部端口坐标）、`port_kind` |
 | `extra` | object | ❌ | 扩展 |
 
-**node.type 枚举（建议）：** `Equipment` | `EquipmentPort` | `InlineInstrument` | `Junction` | `Boundary`
-
 ---
 
 ## 5. `lines` 块

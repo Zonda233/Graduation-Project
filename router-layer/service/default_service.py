@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, List, Optional
 
 from ..config import RouterConfig
 from ..emission.minimal_emitter import MinimalJsonEmitter
 from ..grid.grid import Grid3D
+from ..models.domain_types import RouteResult, RoutingFailure
 from ..parsing.input_parser import RouterInputParser
 from ..pathfinding.clearance_path_finder import ClearanceAwareShortestPathFinder
 from ..pathfinding.path_finder import PathFinder
@@ -18,7 +19,11 @@ from ..snapping.shell_snapper import EquipmentPortShellSnapper
 
 @dataclass
 class DefaultRouterService:
-    """Default end-to-end router pipeline service."""
+    """Default end-to-end router pipeline service.
+
+    Returns a RouteResult rather than raising on routing failure so that
+    callers (test harness, VLM retry loop) can inspect the full diagnostic.
+    """
 
     config: RouterConfig = field(default_factory=RouterConfig)
     parser: RouterInputParser = field(default_factory=RouterInputParser)
@@ -28,12 +33,20 @@ class DefaultRouterService:
     json_emitter: object = field(default_factory=MinimalJsonEmitter)
     shell_snapper: EquipmentPortShellSnapper = field(default_factory=EquipmentPortShellSnapper)
 
-    def route(self, router_input: Dict[str, object]) -> Dict[str, object]:
+    def route(self, router_input: Dict[str, object]) -> RouteResult:
+        """Run the full routing pipeline and return a RouteResult.
+
+        On success:  RouteResult(success=True, output_json=..., failures=[])
+        On failure:  RouteResult(success=False, output_json=None,
+                                 failures=[...], failure_report=...)
+        """
         typed_input = self.parser.parse(router_input)
         placed_nodes = self.node_placer.place_nodes(typed_input, self.config)
         self.shell_snapper.apply(typed_input, placed_nodes, self.config)
+
         nx, ny, nz = self.config.grid_dimensions
         grid = Grid3D(nx=nx, ny=ny, nz=nz, occupied=set(), voxel_size=self.config.voxel_size)
+
         line_routes = self.multi_line_router.route_all_lines(
             grid=grid,
             placed_nodes=placed_nodes,
@@ -41,10 +54,45 @@ class DefaultRouterService:
             path_finder=self.path_finder,
             config=self.config,
         )
+
+        # Collect failures (I-5: routing failure is never silent).
+        failures: List[RoutingFailure] = []
+        for result in line_routes.values():
+            if not result.success and result.failure is not None:
+                failures.append(result.failure)
+            elif not result.success:
+                # Fallback for routers that don't populate result.failure.
+                from ..models.domain_types import RoutingFailure as RF
+                failures.append(RF(
+                    line_id=result.line_id,
+                    reason=result.reason or "no_path_found",
+                    start_vc=(0, 0, 0),
+                    goal_vc=(0, 0, 0),
+                ))
+
+        if failures:
+            report_lines = [
+                f"=== ROUTING FAILURES ({len(failures)} line(s)) ===",
+            ]
+            for f in failures:
+                report_lines.append(f.message)
+            failure_report = "\n\n".join(report_lines)
+            return RouteResult(
+                success=False,
+                output_json=None,
+                failures=failures,
+                failure_report=failure_report,
+            )
+
         generation_json = self.json_emitter.emit(
             router_input=typed_input,
             placed_nodes=placed_nodes,
             line_routes=line_routes,
             config=self.config,
         )
-        return generation_json
+        return RouteResult(
+            success=True,
+            output_json=generation_json,
+            failures=[],
+            failure_report=None,
+        )
