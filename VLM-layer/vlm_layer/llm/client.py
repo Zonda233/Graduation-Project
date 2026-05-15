@@ -71,5 +71,5 @@ def build_chat_model(
         base_url=base_url,
         default_headers=default_headers or None,
         extra_body=extra_body or None,
-        temperature=0,
+        temperature=1,
     )

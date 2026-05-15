@@ -10,134 +10,66 @@
       "temperature": "degC"
     }
   },
-  "plant": {
-    "plant_id": "DEMO_PLANT",
-    "unit_id": "UNIT_01",
-    "system_id": "SYS-TANK-TRANSFER"
-  },
   "nodes": [
     {
-      "id": "port_tankA_out",
+      "id": "port_tanka_out",
       "type": "EquipmentPort",
       "role": "outlet",
-      "label": "TankA 出口",
-      "pid_tag": "TankA",
+      "label": "TankA Outlet",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_tankB_in",
+      "id": "port_tankb_in",
       "type": "EquipmentPort",
       "role": "inlet",
-      "label": "TankB 入口",
-      "pid_tag": "TankB",
+      "label": "TankB Inlet",
       "equipment_ref": "TankB"
     },
     {
-      "id": "junc_tee_01",
+      "id": "junc_between_valves",
       "type": "Junction",
-      "role": "branch_point",
-      "label": "分配三通"
+      "role": "intermediate",
+      "label": "Valve Interconnection"
     },
     {
-      "id": "port_module_in",
-      "type": "EquipmentPort",
-      "role": "inlet",
-      "label": "模块入口",
-      "pid_tag": "Module",
-      "equipment_ref": "Module",
-      "properties": {
-        "asset_type": "custom_module",
-        "module_kind": "custom",
-        "module_voxel_extent": [
-          3,
-          2,
-          2
-        ],
-        "port_local_wc": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "port_kind": "process"
-      }
-    },
-    {
-      "id": "port_tankA_TI",
+      "id": "port_tanka_signal",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "TankA 温度信号口",
-      "pid_tag": "TankA",
+      "label": "TankA Signal Port",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_tankA_PI",
-      "type": "EquipmentPort",
-      "role": "signal",
-      "label": "TankA 压力信号口",
-      "pid_tag": "TankA",
-      "equipment_ref": "TankA"
-    },
-    {
-      "id": "inst_TI_101",
+      "id": "inst_ti_101",
       "type": "InlineInstrument",
-      "role": "indicator",
-      "label": "温度指示器 TI-101",
+      "label": "TI-101",
       "properties": {
         "instrument_kind": "thermometer"
-      }
-    },
-    {
-      "id": "inst_PI_102",
-      "type": "InlineInstrument",
-      "role": "indicator",
-      "label": "压力指示器 PI-102",
-      "properties": {
-        "instrument_kind": "pressure_gauge"
       }
     }
   ],
   "lines": [
     {
-      "id": "L_main_process",
-      "tag": "P-001-100",
-      "from_node": "port_tankA_out",
-      "to_node": "port_tankB_in",
-      "via_nodes": [
-        "junc_tee_01"
-      ],
-      "service": "ProcessFluid",
-      "fluid": "GeneralFluid",
+      "id": "L_001",
+      "from_node": "port_tanka_out",
+      "to_node": "junc_between_valves",
+      "service": "Fluid",
       "nominal_diameter_mm": 100,
-      "with_flanges": true,
-      "layout_type": "above_ground",
-      "phase": "liquid"
+      "with_flanges": false,
+      "valve_subtype": "Gate"
     },
     {
-      "id": "L_branch_module",
-      "tag": "P-002-080",
-      "from_node": "junc_tee_01",
-      "to_node": "port_module_in",
-      "service": "ProcessFluid",
-      "fluid": "GeneralFluid",
-      "nominal_diameter_mm": 80,
-      "with_flanges": true,
-      "layout_type": "above_ground",
-      "phase": "liquid"
+      "id": "L_002",
+      "from_node": "junc_between_valves",
+      "to_node": "port_tankb_in",
+      "service": "Fluid",
+      "nominal_diameter_mm": 100,
+      "with_flanges": false,
+      "valve_subtype": "Ball"
     },
     {
-      "id": "L_sig_temp",
-      "tag": "SIG-TI-101",
-      "from_node": "port_tankA_TI",
-      "to_node": "inst_TI_101",
-      "service": "instrument_signal",
-      "nominal_diameter_mm": 6,
-      "with_flanges": false
-    },
-    {
-      "id": "L_sig_press",
-      "tag": "SIG-PI-102",
-      "from_node": "port_tankA_PI",
-      "to_node": "inst_PI_102",
+      "id": "L_sig_001",
+      "from_node": "inst_ti_101",
+      "to_node": "port_tanka_signal",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false

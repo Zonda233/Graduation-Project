@@ -42,21 +42,72 @@ constraints 必须等于：
 
 
 【结构与语义约束】
-- `nodes[].type` 仅可使用：`Equipment`、`EquipmentPort`、`InlineInstrument`、`Junction`、`Boundary`。
+- `nodes[].type` 仅可使用：`Equipment`、`EquipmentPort`、`InlineInstrument`、`InlineReducer`、`Junction`、`Boundary`。
 - `nodes[].role` 对于 `EquipmentPort` 类型节点，**必须且只能**从以下枚举中选取：`inlet` | `outlet` | `vent` | `drain` | `signal`。禁止使用任何其他值（如 `instrument_connection`、`nozzle`、`process_port` 等均不合法）。
 - `lines[]` 的每个元素至少要有：`id`、`from_node`、`to_node`。
 - 每个 `from_node`/`to_node`/`via_nodes[]` 必须引用已有 `nodes[].id`。
 - 对于仪表信号线，`service` 使用 `instrument_signal`，并必须要 `with_flanges=false`，而且`nominal_diameter_mm`必须填`6`。
-- 对于工艺线，`service` 可使用流程介质名（例如 CoolingWater），默认填`Fluid`。倾向于`with_flanges=true`，必须给出 `nominal_diameter_mm`，默认填`80`。
+- 对于工艺线，`service` 可使用流程介质名（例如 CoolingWater），默认填`Fluid`。如果图纸中工艺线上没有法兰，则令`with_flanges=false`，只有工艺线上有法兰的时候才令`with_flanges=true`。根据图纸上的`DNXX`来给出公称直径 `nominal_diameter_mm`，默认填`80`。
 - 可以包含 `InlineInstrument` 节点，并在 `properties.instrument_kind` 中使用合理仪表类型（如 thermometer、pressure_gauge）。
 
+【阀门表达方式】
+- 当管线上有**闸阀**时，在该 `lines[]` 条目中添加字段 `"valve_subtype": "Gate"`。
+- 当管线上有**球阀**时，在该 `lines[]` 条目中添加字段 `"valve_subtype": "Ball"`。
+- `valve_subtype` 是 `lines[]` 的字段，**不是** `nodes[]` 的字段。每条管线最多一个阀门。
+- 示例：
+```json
+{
+  "id": "L_001",
+  "from_node": "port_tank_out",
+  "to_node": "port_pump_in",
+  "service": "Fluid",
+  "nominal_diameter_mm": 80,
+  "with_flanges": false,
+  "valve_subtype": "Gate"
+}
+```
+
+【变径管表达方式】
+- 变径管（Reducer）用 `type="InlineReducer"` 节点表达，放在 `nodes[]` 中，并作为 `via_nodes` 插入到经过它的管线中。
+- `InlineReducer` 节点的 `properties` 必须包含：
+  - `"nominal_diameter_in_mm"`: 入口公称直径（mm），与上游管线直径一致
+  - `"nominal_diameter_out_mm"`: 出口公称直径（mm），与下游管线直径一致
+- 示例：
+```json
+{
+  "id": "reducer_001",
+  "type": "InlineReducer",
+  "label": "变径管 DN80→DN50",
+  "properties": {
+    "nominal_diameter_in_mm": 80,
+    "nominal_diameter_out_mm": 50
+  }
+}
+```
+- 对应管线写法（变径管作为 `via_nodes`）：
+```json
+{
+  "id": "L_002",
+  "from_node": "port_tank_out",
+  "to_node": "port_pump_in",
+  "via_nodes": ["reducer_001"],
+  "service": "Fluid",
+  "nominal_diameter_mm": 80,
+  "with_flanges": false
+}
+```
+
 【输出风格】
-- 面向 router-layer 的“图级逻辑连接”，不要臆造空间信息。当前版本下，禁止出现任何如`location_2d`等空间提示，路由层会自己布线。且除了costum module的`properties`需要按要求复制外，禁止出现`bbox_hint`、等
+- 面向 router-layer 的"图级逻辑连接"，不要臆造空间信息。当前版本下，禁止出现任何如`location_2d`等空间提示，路由层会自己布线。且除了costum module的`properties`需要按要求复制外，禁止出现`bbox_hint`、等
 - 设备上的port需要写`equipment_ref`，例如TankA的工艺线接口里就可以写`"equipment_ref": "TankA"`，在路由层中会按照各个节点的`equipment_ref`生成设备实体字典，故此为设备的唯一标识符。三通不属于设备，三通会根据`Junction`节点生成。
-- 输出的node字段的顺序，应该先是各种Tank的工艺线port，然后是三通，然后是自定义模块，然后是各种信号线port，最后是各种仪表。
+- 输出的node字段的顺序，应该先是各种Tank的工艺线port，然后是三通，然后是变径管，然后是自定义模块，然后是各种信号线port，最后是各种仪表。
 - 三通(tee)主线尽量以`via_nodes`的形式给出，只有支线中三通才会作为`from_node`。
 - 图像存在歧义时，使用最小充分结构表达连通关系，不要编造坐标。
-- ID 命名保持可读、稳定、全局唯一（如 `port_xxx`、`inst_xxx`、`L_xxx`、`junc_xxx`）。
+- ID 命名保持可读、稳定、全局唯一（如 `port_xxx`、`inst_xxx`、`L_xxx`、`junc_xxx`、`reducer_xxx`）。
+
+【额外提示】
+- 注意识别管线上的阀门符号：闸阀（两个三角形对顶）用 `valve_subtype: "Gate"`，球阀（圆形阀体）用 `valve_subtype: "Ball"`。
+- 注意识别变径管符号（梯形或锥形连接两段不同直径管道），用 `InlineReducer` 节点表达。
 
 再次强调：只输出 JSON 对象本体。
 
@@ -143,7 +194,6 @@ constraints 必须等于：
 | `properties` | object | ❌ | 工艺属性（压力、温度、介质等）；`InlineInstrument` 可携带 `instrument_kind`/`nominal_diameter_mm`；`EquipmentPort` 可携带 `asset_type="custom_module"`、`port_local_wc`（局部端口坐标）、`port_kind` |
 | `extra` | object | ❌ | 扩展 |
 
-**node.type 枚举（建议）：** `Equipment` | `EquipmentPort` | `InlineInstrument` | `Junction` | `Boundary`
 
 ---
 

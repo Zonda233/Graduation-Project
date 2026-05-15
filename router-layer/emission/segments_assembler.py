@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 log = logging.getLogger(__name__)
 
@@ -53,14 +53,22 @@ class SegmentsAndTeesAssembler:
         via_ids = self._collect_via_node_ids(lines, nodes)
         tee_id_by_via = self._build_tee_id_map(via_ids)
 
+        # Tee axes must be computed first so that _build_segment_descriptors can
+        # correctly assign _run_a / _run_b / _branch to junction-endpoint lines.
+        tee_axes = self._build_tee_axes(via_ids, tee_id_by_via, lines, line_routes, placed_nodes)
+
         seg_descriptors = self._build_segment_descriptors(
             lines=lines,
             line_routes=line_routes,
             placed_nodes=placed_nodes,
             tee_id_by_via=tee_id_by_via,
+            tee_axes=tee_axes,
         )
-        segment_by_id, tee_run_a_comp, tee_run_b_comp, tee_branch_comp = self._build_segments(seg_descriptors)
-        tee_axes = self._build_tee_axes(via_ids, tee_id_by_via, lines, line_routes, placed_nodes)
+        segment_by_id, tee_run_a_comp, tee_run_b_comp, tee_branch_comp = self._build_segments(
+            seg_descriptors,
+            placed_nodes=placed_nodes,
+            nodes=nodes,
+        )
         tee_joints = self._build_tee_joints(
             via_ids=via_ids,
             tee_id_by_via=tee_id_by_via,
@@ -90,10 +98,12 @@ class SegmentsAndTeesAssembler:
                 seen.add(via_id)
                 via_ids.append(via_id)
 
-            from_node = line.from_node_id
-            if from_node and from_node not in seen and from_node in node_ids and from_node in junction_ids:
-                seen.add(from_node)
-                via_ids.append(from_node)
+            # Collect junction nodes that appear as line endpoints (from or to).
+            # These become tee joints even when the junction is not a via node.
+            for endpoint in (line.from_node_id, line.to_node_id):
+                if endpoint and endpoint not in seen and endpoint in node_ids and endpoint in junction_ids:
+                    seen.add(endpoint)
+                    via_ids.append(endpoint)
         return via_ids
 
     def _build_tee_id_map(self, via_ids: List[str]) -> Dict[str, str]:
@@ -105,6 +115,7 @@ class SegmentsAndTeesAssembler:
         line_routes: LineRouteMap,
         placed_nodes: PlacedNodeMap,
         tee_id_by_via: Dict[str, str],
+        tee_axes: Dict[str, Dict[str, str]],
     ) -> List[_SegmentDescriptor]:
         descriptors: List[_SegmentDescriptor] = []
         for line in lines:
@@ -114,11 +125,27 @@ class SegmentsAndTeesAssembler:
 
             path = route.voxel_path
             if not line.via_node_ids:
+                seg_from = self._resolve_endpoint_port(
+                    node_id=line.from_node_id,
+                    tee_id_by_via=tee_id_by_via,
+                    tee_axes=tee_axes,
+                    path=path,
+                    is_from=True,
+                    placed_nodes=placed_nodes,
+                )
+                seg_to = self._resolve_endpoint_port(
+                    node_id=line.to_node_id or "",
+                    tee_id_by_via=tee_id_by_via,
+                    tee_axes=tee_axes,
+                    path=path,
+                    is_from=False,
+                    placed_nodes=placed_nodes,
+                )
                 descriptors.append(
                     _SegmentDescriptor(
                         seg_id=f"seg_{line.line_id}",
-                        seg_from=self._resolve_start_port(line.from_node_id, tee_id_by_via),
-                        seg_to=line.to_node_id or "",
+                        seg_from=seg_from,
+                        seg_to=seg_to,
                         path_slice=path,
                         line=line,
                     )
@@ -151,20 +178,49 @@ class SegmentsAndTeesAssembler:
     def _build_segments(
         self,
         descriptors: List[_SegmentDescriptor],
+        placed_nodes: Optional["PlacedNodeMap"] = None,
+        nodes: Optional[List[NodeSpec]] = None,
     ) -> Tuple[Dict[str, Dict[str, object]], Dict[str, str], Dict[str, str], Dict[str, str]]:
         segment_by_id: Dict[str, Dict[str, object]] = {}
         tee_run_a_comp: Dict[str, str] = {}
         tee_run_b_comp: Dict[str, str] = {}
         tee_branch_comp: Dict[str, str] = {}
 
+        # Build a map of InlineReducer voxel → diameter spec for quick lookup.
+        reducer_vc_map: Dict[Vc, Dict[str, float]] = {}
+        if placed_nodes and nodes:
+            for node in nodes:
+                if node.node_type != "InlineReducer":
+                    continue
+                if node.node_id not in placed_nodes:
+                    continue
+                vc = placed_nodes[node.node_id].vc
+                props = node.properties
+                diameter_in = float(props.get("nominal_diameter_in_mm", 80)) / MM_TO_M
+                diameter_out = float(props.get("nominal_diameter_out_mm", 50)) / MM_TO_M
+                reducer_vc_map[vc] = {
+                    "diameter_in_m": diameter_in,
+                    "diameter_out_m": diameter_out,
+                }
+
         for desc in descriptors:
             nominal_diameter_m = self._nominal_m(desc.line.nominal_diameter_mm)
             straight_type = "SignalLine" if self._is_instrument_signal_line(desc.line) else "Pipe"
+            valve_subtype = self._valve_subtype(desc.line)
+
+            # Collect reducer voxels that lie on this path slice.
+            path_set = set(desc.path_slice)
+            segment_reducer_vcs = {
+                vc: spec for vc, spec in reducer_vc_map.items() if vc in path_set
+            }
+
             components = self._path_converter.convert(
                 desc.path_slice,
                 desc.seg_id,
                 nominal_diameter_m,
                 straight_type=straight_type,
+                valve_subtype=valve_subtype,
+                reducer_vcs=segment_reducer_vcs if segment_reducer_vcs else None,
             )
             if not components:
                 continue
@@ -197,6 +253,15 @@ class SegmentsAndTeesAssembler:
         service = str(line.raw.get("service", "")).strip().lower()
         return service == "instrument_signal"
 
+    @staticmethod
+    def _valve_subtype(line: LineSpec) -> Optional[str]:
+        """Return the valve subtype string if the line has one, else None."""
+        raw_val = line.raw.get("valve_subtype")
+        if not raw_val:
+            return None
+        val = str(raw_val).strip()
+        return val if val in ("Gate", "Ball") else None
+
     def _build_tee_axes(
         self,
         via_ids: List[str],
@@ -221,8 +286,8 @@ class SegmentsAndTeesAssembler:
                     continue
 
                 path = route.voxel_path
-                at_endpoint = line.from_node_id == via_id or line.to_node_id == via_id
-                if not at_endpoint and via_id in line.via_node_ids:
+                if via_id in line.via_node_ids:
+                    # via-node topology: tee sits in the middle of the path.
                     idx = self._index_in_path(path, tee_vc)
                     if idx is None or idx <= 0 or idx >= len(path) - 1:
                         continue
@@ -233,7 +298,15 @@ class SegmentsAndTeesAssembler:
                     run_a_axis = axis_map.get(VoxelGeometryMaps.delta_vc(prev_vc, tee_vc))
                     # Similarly, delta_vc(next, tee) points FROM tee TOWARD next — the run_b port direction.
                     run_b_axis = axis_map.get(VoxelGeometryMaps.delta_vc(next_vc, tee_vc))
+                elif line.to_node_id == via_id and len(path) >= 2 and path[-1] == tee_vc:
+                    # junction-endpoint topology: a line ends at the tee.
+                    # The run_a port faces the arriving pipe (direction FROM tee TOWARD prev voxel).
+                    run_a_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[-2], tee_vc))
                 elif line.from_node_id == via_id and len(path) >= 2 and path[0] == tee_vc:
+                    # junction-endpoint topology: a line starts at the tee.
+                    # This is either run_b (main run continuation) or branch.
+                    # We record the departure direction; _resolve_endpoint_port will
+                    # classify it as run_b or branch after all axes are known.
                     branch_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[1], tee_vc))
 
             tee_axes[tee_id] = self._normalize_tee_axes(
@@ -364,9 +437,60 @@ class SegmentsAndTeesAssembler:
 
     @staticmethod
     def _resolve_start_port(from_port: str, tee_id_by_via: Dict[str, str]) -> str:
+        """Legacy helper used only by _resolve_segment_ports_for_slice (via-node topology).
+
+        For junction-endpoint topology (no via_node_ids) use _resolve_endpoint_port
+        instead, which correctly distinguishes _run_b from _branch.
+        """
         if from_port in tee_id_by_via:
             return f"{tee_id_by_via[from_port]}{TEE_PORT_SUFFIX_BRANCH}"
         return from_port or ""
+
+    def _resolve_endpoint_port(
+        self,
+        node_id: str,
+        tee_id_by_via: Dict[str, str],
+        tee_axes: Dict[str, Dict[str, str]],
+        path: List[Vc],
+        is_from: bool,
+        placed_nodes: "PlacedNodeMap",
+    ) -> str:
+        """Resolve a segment's from_port or to_port for a junction-endpoint line.
+
+        When the node is a junction (tee), we use the path direction relative to
+        the tee's computed axes to assign the correct port suffix:
+
+        * ``is_from=True``  (line starts at tee): compare departure direction
+          against ``run_b`` axis → assign ``_run_b`` if they match, else ``_branch``.
+        * ``is_from=False`` (line ends at tee): compare arrival direction
+          against ``run_a`` axis → assign ``_run_a`` if they match, else ``_branch``.
+
+        Falls back to the raw node ID when the node is not a tee junction.
+        """
+        if node_id not in tee_id_by_via:
+            return node_id or ""
+
+        tee_id = tee_id_by_via[node_id]
+        axes = tee_axes.get(tee_id, {})
+        placed = placed_nodes.get(node_id)
+        axis_map = VoxelGeometryMaps.AXIS_BY_DELTA
+
+        if is_from:
+            # Pipe departs from the tee: first step of path is tee_vc → next_vc.
+            if placed and len(path) >= 2 and path[0] == placed.vc:
+                depart_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[1], placed.vc))
+                if depart_axis and depart_axis == axes.get("run_b"):
+                    return f"{tee_id}{TEE_PORT_SUFFIX_RUN_B}"
+            return f"{tee_id}{TEE_PORT_SUFFIX_BRANCH}"
+        else:
+            # Pipe arrives at the tee: last step of path is prev_vc → tee_vc.
+            if placed and len(path) >= 2 and path[-1] == placed.vc:
+                arrive_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[-2], placed.vc))
+                # run_a axis points FROM tee TOWARD the upstream pipe, which is
+                # the same direction as the last path step (prev → tee reversed).
+                if arrive_axis and arrive_axis == axes.get("run_a"):
+                    return f"{tee_id}{TEE_PORT_SUFFIX_RUN_A}"
+            return f"{tee_id}{TEE_PORT_SUFFIX_BRANCH}"
 
     @staticmethod
     def _split_path_by_via(path: List[Vc], via_vcs: List[Vc]) -> List[List[Vc]]:

@@ -32,8 +32,8 @@ CONFIG_PATH = REPO_ROOT / "global_config.json"
 DEFAULT_CONFIG: dict = {
     "openrouter": {
         "api_key": "",
-        "base_url": "https://api.deepseek.com",
-        "chat_model": "deepseek-chat",
+        "base_url": "https://api.moonshot.cn/v1",
+        "chat_model": "kimi-k2.6",
         "http_referer": "",
         "app_title": "Graduation-Project-VLM",
         "reasoning": {
@@ -295,6 +295,8 @@ def main() -> None:
 
     from vlm_layer.pipeline import PipelineIO, run_end_to_end  # noqa: PLC0415
 
+    _symbols_dir = (REPO_ROOT / "VLM-layer/Symbols").resolve()
+
     io = PipelineIO(
         image_path               = (REPO_ROOT / args.image).resolve(),
         prompts_path             = (REPO_ROOT / "VLM-layer/config/prompts.json").resolve(),
@@ -305,6 +307,7 @@ def main() -> None:
         generation_output_path   = (REPO_ROOT / args.generation_out).resolve(),
         model_override           = args.model,
         max_retries              = args.max_retries,
+        symbol_examples_dir      = _symbols_dir if _symbols_dir.is_dir() else None,
     )
 
     if not io.image_path.is_file():

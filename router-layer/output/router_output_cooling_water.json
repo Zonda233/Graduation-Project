@@ -102,7 +102,7 @@
         {
           "port_id": "tee_01_run_a",
           "axis": "-X",
-          "connects_to_comp": "seg_L_run_1_c02"
+          "connects_to_comp": "seg_L_run_1_c06"
         },
         {
           "port_id": "tee_01_run_b",
@@ -118,6 +118,76 @@
       "spec": {
         "main_diameter": 0.1,
         "branch_diameter": 0.05,
+        "material_id": "mat_carbon_steel"
+      }
+    },
+    {
+      "tee_id": "tee_02",
+      "vc_center": [
+        18,
+        16,
+        0
+      ],
+      "wc_center": [
+        3.7,
+        3.3000000000000003,
+        0.1
+      ],
+      "ports": [
+        {
+          "port_id": "tee_02_run_a",
+          "axis": "-Y",
+          "connects_to_comp": ""
+        },
+        {
+          "port_id": "tee_02_run_b",
+          "axis": "+Y",
+          "connects_to_comp": ""
+        },
+        {
+          "port_id": "tee_02_branch",
+          "axis": "+Z",
+          "connects_to_comp": ""
+        }
+      ],
+      "spec": {
+        "main_diameter": 0.1,
+        "branch_diameter": 0.1,
+        "material_id": "mat_carbon_steel"
+      }
+    },
+    {
+      "tee_id": "tee_03",
+      "vc_center": [
+        16,
+        3,
+        0
+      ],
+      "wc_center": [
+        3.3000000000000003,
+        0.7000000000000001,
+        0.1
+      ],
+      "ports": [
+        {
+          "port_id": "tee_03_run_a",
+          "axis": "-X",
+          "connects_to_comp": "seg_L_branch_c02"
+        },
+        {
+          "port_id": "tee_03_run_b",
+          "axis": "+X",
+          "connects_to_comp": ""
+        },
+        {
+          "port_id": "tee_03_branch",
+          "axis": "+Y",
+          "connects_to_comp": ""
+        }
+      ],
+      "spec": {
+        "main_diameter": 0.05,
+        "branch_diameter": 0.1,
         "material_id": "mat_carbon_steel"
       }
     }
@@ -187,7 +257,7 @@
             0
           ],
           "vc_end": [
-            10,
+            5,
             10,
             0
           ],
@@ -197,12 +267,109 @@
             0.1
           ],
           "wc_end": [
+            0.9255500000000001,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.2511
+        },
+        {
+          "comp_id": "seg_L_run_1_c03",
+          "type": "Elbow",
+          "vc_center": [
+            5,
+            10,
+            0
+          ],
+          "wc_center": [
+            1.1,
+            2.1,
+            0.1
+          ],
+          "axis_in": "+X",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.17145
+        },
+        {
+          "comp_id": "seg_L_run_1_c04",
+          "type": "Pipe",
+          "vc_start": [
+            5,
+            10,
+            0
+          ],
+          "vc_end": [
+            6,
+            10,
+            0
+          ],
+          "wc_start": [
+            1.27445,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            1.3,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.02555
+        },
+        {
+          "comp_id": "seg_L_run_1_c05",
+          "type": "Valve",
+          "subtype": "Gate",
+          "vc_start": [
+            6,
+            10,
+            0
+          ],
+          "vc_end": [
+            6,
+            10,
+            0
+          ],
+          "wc_start": [
+            1.2,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            1.4,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "nominal_diameter": 0.1
+        },
+        {
+          "comp_id": "seg_L_run_1_c06",
+          "type": "Pipe",
+          "vc_start": [
+            6,
+            10,
+            0
+          ],
+          "vc_end": [
+            10,
+            10,
+            0
+          ],
+          "wc_start": [
+            1.3,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
             2.0,
             2.1,
             0.1
           ],
           "axis": "+X",
-          "length_m": 1.32555
+          "length_m": 0.7
         }
       ]
     },
@@ -226,7 +393,7 @@
             0
           ],
           "vc_end": [
-            18,
+            16,
             10,
             0
           ],
@@ -236,15 +403,112 @@
             0.1
           ],
           "wc_end": [
+            3.1255500000000005,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.92555
+        },
+        {
+          "comp_id": "seg_L_run_2_c01",
+          "type": "Elbow",
+          "vc_center": [
+            16,
+            10,
+            0
+          ],
+          "wc_center": [
+            3.3000000000000003,
+            2.1,
+            0.1
+          ],
+          "axis_in": "+X",
+          "axis_out": "+X",
+          "angle_deg": 90,
+          "bend_radius_m": 0.17145
+        },
+        {
+          "comp_id": "seg_L_run_2_c02",
+          "type": "Pipe",
+          "vc_start": [
+            16,
+            10,
+            0
+          ],
+          "vc_end": [
+            17,
+            10,
+            0
+          ],
+          "wc_start": [
+            3.47445,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            3.5,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "length_m": 0.02555
+        },
+        {
+          "comp_id": "seg_L_run_2_c03",
+          "type": "Valve",
+          "subtype": "Gate",
+          "vc_start": [
+            17,
+            10,
+            0
+          ],
+          "vc_end": [
+            17,
+            10,
+            0
+          ],
+          "wc_start": [
+            3.4,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
+            3.6,
+            2.1,
+            0.1
+          ],
+          "axis": "+X",
+          "nominal_diameter": 0.1
+        },
+        {
+          "comp_id": "seg_L_run_2_c04",
+          "type": "Pipe",
+          "vc_start": [
+            17,
+            10,
+            0
+          ],
+          "vc_end": [
+            18,
+            10,
+            0
+          ],
+          "wc_start": [
+            3.5,
+            2.1,
+            0.1
+          ],
+          "wc_end": [
             3.52555,
             2.1,
             0.1
           ],
           "axis": "+X",
-          "length_m": 1.32555
+          "length_m": 0.02555
         },
         {
-          "comp_id": "seg_L_run_2_c01",
+          "comp_id": "seg_L_run_2_c05",
           "type": "Elbow",
           "vc_center": [
             18,
@@ -262,7 +526,7 @@
           "bend_radius_m": 0.17145
         },
         {
-          "comp_id": "seg_L_run_2_c02",
+          "comp_id": "seg_L_run_2_c06",
           "type": "Pipe",
           "vc_start": [
             18,
@@ -293,7 +557,7 @@
       "id": "seg_L_branch",
       "display_name": "CW-02-50-CS",
       "from_port": "tee_01_branch",
-      "to_port": "end_cap_branch",
+      "to_port": "tee_03_run_a",
       "spec": {
         "nominal_diameter": 0.05,
         "material_id": "mat_carbon_steel",
@@ -363,12 +627,12 @@
             0.1
           ],
           "wc_end": [
-            3.3000000000000003,
+            3.209505,
             0.7000000000000001,
             0.1
           ],
           "axis": "+X",
-          "length_m": 1.106505
+          "length_m": 1.01601
         }
       ]
     }

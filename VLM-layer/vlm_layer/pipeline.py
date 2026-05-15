@@ -60,6 +60,10 @@ class PipelineIO:
     generation_output_path: Path
     model_override: str | None = None
     max_retries: int = 3
+    #: Optional directory of symbol example images for few-shot visual prompting.
+    #: When set, images in this directory are prepended to the VLM message with
+    #: labels so the model can better recognise P&ID symbols.
+    symbol_examples_dir: Path | None = None
 
 
 @dataclass
@@ -157,6 +161,7 @@ def run_end_to_end(
             global_cfg=global_cfg,
             model_override=io.model_override,
             correction_message=correction_message,
+            symbol_examples_dir=io.symbol_examples_dir,
         )
 
         if not validate_schema:

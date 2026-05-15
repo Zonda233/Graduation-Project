@@ -55,6 +55,7 @@ class SequentialMultiLineRouter:
             router_input, placed_nodes, config
         )
         static_occupied |= self._instrument_blocked_voxels(router_input, placed_nodes)
+        static_occupied |= self._reducer_blocked_voxels(router_input, placed_nodes)
         # Port voxels of custom-module ports are already inside the bounding
         # box computed above.  For InlineInstrument the single voxel IS the
         # port.  Both are therefore already in static_occupied — no extra step
@@ -251,6 +252,27 @@ class SequentialMultiLineRouter:
         blocked: Set[Vc] = set()
         for node in router_input.nodes:
             if node.node_type != "InlineInstrument":
+                continue
+            if node.node_id not in placed_nodes:
+                continue
+            blocked.add(placed_nodes[node.node_id].vc)
+        return blocked
+
+    @staticmethod
+    def _reducer_blocked_voxels(
+        router_input: RouterInput,
+        placed_nodes: Dict[str, PlacedNode],
+    ) -> Set[Vc]:
+        """Return the single voxel footprint of every InlineReducer.
+
+        Like InlineInstrument, the reducer occupies exactly one voxel on the
+        pipe path.  It is added to static_occupied so that other lines cannot
+        route through it, and freed per-line via route_context() when a line
+        that passes through this reducer is being routed.
+        """
+        blocked: Set[Vc] = set()
+        for node in router_input.nodes:
+            if node.node_type != "InlineReducer":
                 continue
             if node.node_id not in placed_nodes:
                 continue

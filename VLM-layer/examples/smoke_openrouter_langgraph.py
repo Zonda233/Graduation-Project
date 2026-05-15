@@ -90,7 +90,7 @@ def _build_chat_model(global_cfg: dict[str, Any]) -> ChatOpenAI:
         base_url=base_url,
         default_headers=default_headers or None,
         extra_body=extra_body or None,
-        temperature=0.2,
+        temperature=1,
     )
 
 
