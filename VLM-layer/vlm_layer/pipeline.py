@@ -3,11 +3,13 @@
 Pipeline stages
 ---------------
 1. Load config & prompt.
-2. Call VLM to parse P&ID image → ``router_input_v1`` JSON.
-3. Validate against router-input schema.
+2. Call VLM to parse P&ID image -> ``router_input_v1`` JSON.
+3. Validate against router-input JSON Schema.
    - On failure: log the error, feed it back to the VLM, retry (up to
      ``max_retries`` times).
-4. Route through router-layer → generation JSON.
+3b. Semantic validation (cross-reference integrity + GB engineering rules).
+   - On failure: log the violations, feed them back to the VLM, retry.
+4. Route through router-layer -> generation JSON.
    - On ``RuntimeError`` (routing failure): log the failure report, feed it
      back to the VLM as a correction message, retry from step 2.
 5. Validate against generation schema.
@@ -38,7 +40,12 @@ from .common import load_json
 from .config import load_router_prompt
 from .perception import generate_router_input_from_image
 from .router_bridge import dump_json, route_to_generation_json
-from .validation import SchemaValidationError, validate_jsonschema
+from .validation import (
+    SchemaValidationError,
+    SemanticValidationError,
+    validate_jsonschema,
+    validate_semantics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +102,13 @@ _ROUTING_RETRY_PREAMBLE = (
     "只输出 JSON 对象本体，不要任何额外文字。"
 )
 
+_SEMANTIC_RETRY_PREAMBLE = (
+    "你上一次的输出未通过语义校验，违规详情如下：\n\n"
+    "{violations}\n\n"
+    "请根据上述违规信息修正 JSON，重新生成符合要求的 router_input_v1 JSON。"
+    "只输出 JSON 对象本体，不要任何额外文字。"
+)
+
 
 def _make_schema_correction_message(error_message: str) -> str:
     return _SCHEMA_RETRY_PREAMBLE.format(error=error_message)
@@ -102,6 +116,10 @@ def _make_schema_correction_message(error_message: str) -> str:
 
 def _make_routing_correction_message(failure_report: str) -> str:
     return _ROUTING_RETRY_PREAMBLE.format(report=failure_report)
+
+
+def _make_semantic_correction_message(violations_text: str) -> str:
+    return _SEMANTIC_RETRY_PREAMBLE.format(violations=violations_text)
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +200,25 @@ def run_end_to_end(
                 continue
             raise
 
+        # --- validate semantic constraints ---
+        try:
+            validate_semantics(router_input)
+        except SemanticValidationError as exc:
+            logger.warning(
+                "semantic validation failed (attempt %d):\n%s",
+                attempt + 1,
+                str(exc),
+            )
+            correction_message = _make_semantic_correction_message(str(exc))
+            retry_count += 1
+            if attempt < max_attempts - 1:
+                continue
+            raise
+
+        # Persist router_input now — before routing — so the file is always
+        # written even when routing fails (useful for debugging).
+        dump_json(io.router_input_output_path, router_input)
+
         # --- route to generation JSON ---
         try:
             generation_json = route_to_generation_json(repo_root, router_input)
@@ -226,7 +263,6 @@ def run_end_to_end(
     if not validate_schema:
         generation_json = route_to_generation_json(repo_root, router_input)
 
-    dump_json(io.router_input_output_path, router_input)
     dump_json(io.generation_output_path, generation_json)
 
     return PipelineResult(

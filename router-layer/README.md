@@ -51,6 +51,7 @@
 - **输入协议可选增强字段**：`nodes[].placement_hint`、`nodes[].bbox_hint`、`constraints.spatial_rules`，用于体素级放置与粗粒度占用检查。
 - **路由层当前做法**：
   - **节点 3D 位置**：`SimpleNodePlacer` 使用 `location_2d` 作为 seed；若缺失，则使用拓扑自动布局（按 line 深度分层 + 分支展开）生成 seed，并结合 `placement_hint`、`bbox_hint` 与 `constraints.spatial_rules` 做体素级冲突回退；保证粗粒度不重叠（体素AABB）后输出锚点 vc。
+  - **多端口罐体（Bug 14 修复）**：当同一 `equipment_ref` 下有多个 `EquipmentPort` 节点时，`SimpleNodePlacer` 采用**两阶段分组放置**：第一个端口（锚点）按正常 seed/搜索逻辑放置，方向为 `direction_preferred` 或默认 `-Z`（罐底）；其余端口（壳体喷嘴）放置在锚点 XY 位置的固定径向偏移处（`ceil(shell_radius / voxel_size)` 体素），方向循环取 `[+X, -X, +Y, -Y]`，除非 `direction_preferred` 已指定。`PlacedNode.direction` 字段记录每个端口的方向，`_build_port_json` 优先使用该字段而非几何推断。
   - **设备（罐子等）**：输入中若有 `EquipmentPort` 且带 `equipment_ref`（如 `tank_01`），但**没有**对应的 `type=Equipment` 节点时，输出阶段会为每个这样的 `equipment_ref` 生成一个**占位 Tank**（小尺寸立式罐，端口在罐底 -Z），以便生成层能画出罐体并与管线连接。占位罐的尺寸与位置由端口位置反推，**非输入协议给定**。
 - 若上游（感知/校验层）将来提供设备的 3D 包围盒或几何，可扩展 NodePlacer / JsonEmitter 使用这些信息，替代当前占位逻辑。
 

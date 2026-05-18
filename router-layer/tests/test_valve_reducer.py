@@ -554,6 +554,119 @@ def test_reducer_at_path_start():
 
 
 # ---------------------------------------------------------------------------
+# End-to-end: two-line InlineReducer model (shared endpoint)
+# ---------------------------------------------------------------------------
+
+# Two EquipmentPort nodes + one InlineReducer node.
+# L_001a: port_a_out → reducer_001  (DN100)
+# L_001b: reducer_001 → port_b_in   (DN50)
+# The reducer voxel is a shared endpoint — it must appear in all_port_vcs
+# so it is never permanently blocked, and route_context() frees it for each
+# line as a normal start/goal.  Both lines must route successfully and the
+# output segments must each contain a Reducer component.
+TWO_LINE_REDUCER_INPUT = {
+    "meta": {
+        "schema_name": "router_input_v1",
+        "units": {"length": "m"},
+    },
+    "nodes": [
+        {
+            "id": "port_a_out",
+            "type": "EquipmentPort",
+            "role": "outlet",
+            "placement_hint": {
+                "z_layers": [1],
+                "anchor_policy": "near_seed",
+            },
+            "bbox_hint": {"extent_voxels": [1, 1, 1], "clearance_voxels": 1},
+        },
+        {
+            "id": "port_b_in",
+            "type": "EquipmentPort",
+            "role": "inlet",
+            "placement_hint": {
+                "z_layers": [1],
+                "anchor_policy": "near_seed",
+            },
+            "bbox_hint": {"extent_voxels": [1, 1, 1], "clearance_voxels": 1},
+        },
+        {
+            "id": "reducer_001",
+            "type": "InlineReducer",
+            "label": "DN100→DN50",
+            "properties": {
+                "nominal_diameter_in_mm": 100,
+                "nominal_diameter_out_mm": 50,
+            },
+        },
+    ],
+    "lines": [
+        {
+            "id": "L_001a",
+            "from_node": "port_a_out",
+            "to_node": "reducer_001",
+            "nominal_diameter_mm": 100,
+        },
+        {
+            "id": "L_001b",
+            "from_node": "reducer_001",
+            "to_node": "port_b_in",
+            "nominal_diameter_mm": 50,
+        },
+    ],
+    "constraints": {"routing_rules": {}},
+}
+
+
+def test_end_to_end_two_line_reducer():
+    """Full router pipeline: two-line InlineReducer model must route both lines
+    and produce Reducer components in the output segments.
+
+    Regression for the InlineReducer redesign (todos 93-99):
+    - Before the fix, _reducer_blocked_voxels() added the reducer voxel to
+      static_occupied, and route_context() never freed it (only start/goal
+      endpoints are freed).  With via_nodes the reducer was a waypoint, not
+      an endpoint, so routing always failed.
+    - After the fix, InlineReducer is a shared endpoint (to_node of L_001a,
+      from_node of L_001b).  Its voxel is in all_port_vcs via the normal
+      from_node/to_node collection loop, so route_context() frees it for
+      each line and block_path() never permanently blocks it.
+    """
+    gen_json = bridge.route_to_generation_json(PROJECT_ROOT, TWO_LINE_REDUCER_INPUT)
+
+    segments = gen_json.get("segments", [])
+    assert len(segments) >= 2, (
+        f"Expected at least 2 segments (one per line), got {len(segments)}.  "
+        f"Routing likely failed for one or both lines."
+    )
+
+    all_components = []
+    for seg in segments:
+        all_components.extend(seg.get("components", []))
+
+    reducer_comps = [c for c in all_components if c.get("type") == "Reducer"]
+    assert reducer_comps, (
+        "Expected at least one Reducer component in generation JSON, "
+        f"got component types: {[c.get('type') for c in all_components]}"
+    )
+
+    # Verify diameter fields are present on the reducer
+    r = reducer_comps[0]
+    assert "diameter_in_m" in r and "diameter_out_m" in r, (
+        f"Reducer component missing diameter fields: {r}"
+    )
+    assert r["diameter_in_m"] > 0 and r["diameter_out_m"] > 0, (
+        f"Reducer diameter fields must be positive: {r}"
+    )
+
+    print(
+        f"  [PASS] test_end_to_end_two_line_reducer  "
+        f"(segments={len(segments)}, reducers={len(reducer_comps)}, "
+        f"diameter_in={r['diameter_in_m']:.4f}m, diameter_out={r['diameter_out_m']:.4f}m)"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -572,6 +685,7 @@ TESTS = [
     test_no_spurious_elbow_before_valve,
     test_reducer_at_path_end,
     test_reducer_at_path_start,
+    test_end_to_end_two_line_reducer,
 ]
 
 

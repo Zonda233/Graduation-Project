@@ -67,8 +67,7 @@ class GenerationPathComponentConverter:
 
         valve_vc: Optional[Vc] = None
         if valve_subtype:
-            mid_idx = len(path) // 2
-            valve_vc = path[mid_idx]
+            valve_vc = self._pick_valve_voxel(path)
             special_vcs[valve_vc] = "Valve"
 
         components: List[Dict[str, object]] = []
@@ -222,6 +221,45 @@ class GenerationPathComponentConverter:
 
         self._trimmer.trim_pipes_around_elbows(components, nominal_diameter_m)
         return components
+
+    @staticmethod
+    def _pick_valve_voxel(path: List[Vc]) -> Vc:
+        """Pick the best voxel for valve injection.
+
+        Prefers the midpoint of the path, but if that voxel is at a direction
+        change (elbow point), scans outward to find the nearest voxel that lies
+        on a straight segment (same direction on both sides).  This prevents the
+        valve from being placed at a turn, which would produce perpendicular pipe
+        segments on either side of the valve.
+
+        Falls back to the raw midpoint if no straight voxel is found.
+        """
+        n = len(path)
+        mid = n // 2
+
+        def _is_straight(idx: int) -> bool:
+            """Return True when path[idx] is on a straight run (not a turn)."""
+            if idx <= 0 or idx >= n - 1:
+                return False
+            d_in  = (path[idx][0] - path[idx - 1][0],
+                     path[idx][1] - path[idx - 1][1],
+                     path[idx][2] - path[idx - 1][2])
+            d_out = (path[idx + 1][0] - path[idx][0],
+                     path[idx + 1][1] - path[idx][1],
+                     path[idx + 1][2] - path[idx][2])
+            return d_in == d_out
+
+        if _is_straight(mid):
+            return path[mid]
+
+        # Scan outward from mid: try mid-1, mid+1, mid-2, mid+2, …
+        for offset in range(1, n):
+            for candidate in (mid - offset, mid + offset):
+                if 1 <= candidate <= n - 2 and _is_straight(candidate):
+                    return path[candidate]
+
+        # No straight voxel found (e.g. path is all turns) — fall back to mid.
+        return path[mid]
 
     @staticmethod
     def _delta(a: Vc, b: Vc) -> Vc:

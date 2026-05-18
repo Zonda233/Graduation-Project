@@ -68,11 +68,12 @@ constraints 必须等于：
 ```
 
 【变径管表达方式】
-- 变径管（Reducer）用 `type="InlineReducer"` 节点表达，放在 `nodes[]` 中，并作为 `via_nodes` 插入到经过它的管线中。
+- 变径管（Reducer）用 `type="InlineReducer"` 节点表达，放在 `nodes[]` 中。
+- 变径管**必须**作为两段管线的**共享端点**，而不是 `via_nodes`。原因：变径管两侧管径不同，必须用两段独立管线分别指定各自的 `nominal_diameter_mm`。
 - `InlineReducer` 节点的 `properties` 必须包含：
   - `"nominal_diameter_in_mm"`: 入口公称直径（mm），与上游管线直径一致
   - `"nominal_diameter_out_mm"`: 出口公称直径（mm），与下游管线直径一致
-- 示例：
+- 示例（节点）：
 ```json
 {
   "id": "reducer_001",
@@ -84,15 +85,22 @@ constraints 必须等于：
   }
 }
 ```
-- 对应管线写法（变径管作为 `via_nodes`）：
+- 对应管线写法（变径管作为两段线的共享端点，**禁止**使用 `via_nodes`）：
 ```json
 {
-  "id": "L_002",
+  "id": "L_002a",
   "from_node": "port_tank_out",
-  "to_node": "port_pump_in",
-  "via_nodes": ["reducer_001"],
+  "to_node": "reducer_001",
   "service": "Fluid",
   "nominal_diameter_mm": 80,
+  "with_flanges": false
+},
+{
+  "id": "L_002b",
+  "from_node": "reducer_001",
+  "to_node": "port_pump_in",
+  "service": "Fluid",
+  "nominal_diameter_mm": 50,
   "with_flanges": false
 }
 ```

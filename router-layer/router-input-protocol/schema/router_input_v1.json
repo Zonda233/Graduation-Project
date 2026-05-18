@@ -48,7 +48,8 @@
           "id": { "type": "string", "minLength": 1 },
           "type": {
             "type": "string",
-            "enum": ["Equipment", "EquipmentPort", "InlineInstrument", "InlineReducer", "Junction", "Boundary"]
+            "enum": ["Equipment", "EquipmentPort", "InlineInstrument", "InlineReducer", "Junction", "Boundary"],
+            "$comment": "InlineReducer must be modelled as a shared endpoint between two lines (to_node of line A and from_node of line B), each with its own nominal_diameter_mm. Do NOT use via_nodes for InlineReducer — the router cannot free a via-waypoint voxel and routing will always fail."
           },
           "role": { "type": "string" },
           "label": { "type": "string" },

@@ -279,6 +279,10 @@ class SegmentsAndTeesAssembler:
             run_a_axis: Optional[str] = None
             run_b_axis: Optional[str] = None
             branch_axis: Optional[str] = None
+            # Count how many lines depart from this tee (junction-endpoint topology).
+            # The first departure is classified as run_b (main run continuation);
+            # the second departure is classified as branch.
+            departure_count = 0
 
             for line in lines:
                 route = line_routes.get(line.line_id)
@@ -304,10 +308,17 @@ class SegmentsAndTeesAssembler:
                     run_a_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[-2], tee_vc))
                 elif line.from_node_id == via_id and len(path) >= 2 and path[0] == tee_vc:
                     # junction-endpoint topology: a line starts at the tee.
-                    # This is either run_b (main run continuation) or branch.
-                    # We record the departure direction; _resolve_endpoint_port will
-                    # classify it as run_b or branch after all axes are known.
-                    branch_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[1], tee_vc))
+                    # The first departure line is the main run continuation (run_b).
+                    # The second departure line is the branch.
+                    # Using departure_count to distinguish them avoids the bug where
+                    # two lines both starting at the tee would overwrite branch_axis
+                    # with the second line's direction, losing the first line's axis.
+                    depart_axis = axis_map.get(VoxelGeometryMaps.delta_vc(path[1], tee_vc))
+                    if departure_count == 0:
+                        run_b_axis = depart_axis
+                    else:
+                        branch_axis = depart_axis
+                    departure_count += 1
 
             tee_axes[tee_id] = self._normalize_tee_axes(
                 tee_id, run_a_axis, run_b_axis, branch_axis

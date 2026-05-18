@@ -39,3 +39,7 @@ class RouterConfig:
     # Default is an empty list (no extra rules beyond the hardcoded invariants).
     rules: List["RoutingRule"] = field(default_factory=list)
 
+    # Tank geometry — must match GeometryHelper.SHELL_RADIUS so that shell-nozzle
+    # placement in SimpleNodePlacer produces flush pipe connections.
+    shell_radius: float = 0.3
+

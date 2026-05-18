@@ -229,11 +229,17 @@ class PlaceholderTankAssetBuilder:
         nominal_diameter = PlaceholderTankAssetBuilder._resolve_nominal_diameter_m(
             port_info.node_spec, is_signal
         )
-        direction = PlaceholderTankAssetBuilder._resolve_port_direction(
-            port_wc=port_info.placed_node.wc,
-            tank_wc_center=tank_wc_center,
-            is_signal=is_signal,
-        )
+        # Prefer the direction already stored on the PlacedNode (set by the
+        # equipment-group two-phase placer).  Fall back to geometric inference
+        # only when no direction was recorded (single-port tanks, legacy paths).
+        if port_info.placed_node.direction is not None:
+            direction = port_info.placed_node.direction
+        else:
+            direction = PlaceholderTankAssetBuilder._resolve_port_direction(
+                port_wc=port_info.placed_node.wc,
+                tank_wc_center=tank_wc_center,
+                is_signal=is_signal,
+            )
         port_json: Dict[str, object] = {
             "port_id": port_info.port_id,
             "role": role,

@@ -55,12 +55,14 @@ class SequentialMultiLineRouter:
             router_input, placed_nodes, config
         )
         static_occupied |= self._instrument_blocked_voxels(router_input, placed_nodes)
-        static_occupied |= self._reducer_blocked_voxels(router_input, placed_nodes)
-        # Port voxels of custom-module ports are already inside the bounding
-        # box computed above.  For InlineInstrument the single voxel IS the
-        # port.  Both are therefore already in static_occupied — no extra step
-        # needed.  (Tank ports are not currently blocked because Tank bodies
-        # are not yet added to static_occupied; that is a future extension.)
+        # NOTE: InlineReducer voxels are NOT added to static_occupied.
+        # With the two-line model, each InlineReducer appears as a from_node or
+        # to_node of a line, so its voxel is already in all_port_vcs (collected
+        # above at lines 47-48).  route_context() frees it per-line as a normal
+        # start/goal endpoint, and block_path() never permanently blocks it
+        # because it is in all_port_vcs.  No special treatment is needed.
+        # (Tank ports are not currently blocked because Tank bodies are not yet
+        # added to static_occupied; that is a future extension.)
 
         occ = OccupancyGrid(
             nx=grid.nx,

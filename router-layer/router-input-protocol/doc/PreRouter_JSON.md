@@ -84,7 +84,7 @@
 | `Equipment` | 设备本体（罐、泵、换热器等）；路由层将其体素 AABB 加入禁行集 |
 | `EquipmentPort` | 设备端口（罐、泵、换热器等的接管口） |
 | `InlineInstrument` | 管道内嵌仪表（流量计、压力表等）；路由层将其体素加入禁行集，并在生成层输出 `Instrument` asset |
-| `InlineReducer` | 管道内嵌变径管；路由层将其体素加入禁行集，并在生成层对应 segment 中注入 `Reducer` 组件 |
+| `InlineReducer` | 管道内嵌变径管；作为两段管线的**共享端点**（`to_node` 和 `from_node`），路由层将其体素加入 `all_port_vcs`（不永久阻塞），生成层在对应 segment 中注入 `Reducer` 组件 |
 | `Junction` | 逻辑连接点（三通分支点，对应 `via_nodes`） |
 | `Boundary` | 装置边界点（Battery Limit） |
 

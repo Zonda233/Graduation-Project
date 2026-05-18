@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
@@ -13,10 +14,28 @@ from ..models.types import Vc, Wc
 
 @dataclass
 class SimpleNodePlacer:
-    """Voxel-level node placer with topology fallback and coarse AABB collision checks."""
+    """Voxel-level node placer with topology fallback and coarse AABB collision checks.
+
+    Multi-port tank placement (Bug 14 fix)
+    ----------------------------------------
+    When multiple EquipmentPort nodes share the same ``equipment_ref`` they are
+    placed as a coherent group rather than independently:
+
+    * **Anchor port** (first in the group) is placed normally via the standard
+      seed/search logic.  Its direction is ``direction_preferred`` if set,
+      otherwise ``-Z`` (bottom nozzle).
+    * **Shell nozzles** (remaining ports) are placed at a fixed radial offset
+      from the anchor's XY position so that the pipe connects flush to the
+      cylindrical shell surface.  The offset is
+      ``ceil(SHELL_RADIUS / voxel_size)`` voxels in X or Y.  Direction cycles
+      through ``[+X, -X, +Y, -Y]`` unless ``direction_preferred`` is set.
+    """
 
     DEFAULT_EQUIPMENT_EXTENT: Tuple[int, int, int] = (3, 3, 3)
     DEFAULT_NODE_EXTENT: Tuple[int, int, int] = (1, 1, 1)
+
+    # Radial directions used for shell nozzles (in order)
+    _SHELL_DIRECTIONS: Tuple[str, ...] = ("+X", "-X", "+Y", "-Y")
 
     last_report: Dict[str, Any] = field(default_factory=dict)
 
@@ -32,7 +51,41 @@ class SimpleNodePlacer:
         max_search_radius = int(spatial_rules.max_search_radius_voxels)
         default_z_layers = [int(z) for z in spatial_rules.default_z_layers if 0 <= int(z) < nz] or [0]
 
+        # Pre-pass: group EquipmentPort nodes by equipment_ref.
+        # Signal ports (role=signal / port_kind=instrument_tap / snap_to_shell)
+        # are intentionally excluded here — they are placed individually by the
+        # main loop below and then repositioned by EquipmentPortShellSnapper.
+        # Including them in the group would assign a fixed radial direction (+X
+        # etc.) that conflicts with the shell-snapper's cylindrical projection,
+        # causing no_path_found failures (Bug 15).
+        equipment_groups: Dict[str, List[NodeSpec]] = {}
         for node in nodes:
+            if node.node_type == "EquipmentPort" and node.equipment_ref:
+                if not self._is_signal_port(node):
+                    equipment_groups.setdefault(node.equipment_ref, []).append(node)
+
+        # IDs that will be placed by the group logic (skip in the main loop)
+        group_placed_ids: Set[str] = set()
+
+        for eid, group_nodes in equipment_groups.items():
+            if len(group_nodes) >= 2:
+                group_conflicts = self._place_equipment_group(
+                    group_nodes=group_nodes,
+                    config=config,
+                    topology_seeds=topology_seeds,
+                    default_z_layers=default_z_layers,
+                    default_clearance=default_clearance,
+                    max_search_radius=max_search_radius,
+                    occupied=occupied,
+                    placed=placed,
+                )
+                conflicts.extend(group_conflicts)
+                for n in group_nodes:
+                    group_placed_ids.add(n.node_id)
+
+        for node in nodes:
+            if node.node_id in group_placed_ids:
+                continue
             placed_node, conflict = self._place_single_node(
                 node=node,
                 config=config,
@@ -54,6 +107,139 @@ class SimpleNodePlacer:
         }
         return placed
 
+    # ------------------------------------------------------------------
+    # Equipment-group two-phase placement (Bug 14)
+    # ------------------------------------------------------------------
+
+    def _place_equipment_group(
+        self,
+        group_nodes: List[NodeSpec],
+        config: RouterConfig,
+        topology_seeds: Dict[str, Tuple[float, float]],
+        default_z_layers: List[int],
+        default_clearance: int,
+        max_search_radius: int,
+        occupied: Set[Vc],
+        placed: PlacedNodeMap,
+    ) -> List[Dict[str, object]]:
+        """Place a group of EquipmentPort nodes that share the same equipment_ref.
+
+        Phase 1 – anchor port (group_nodes[0]):
+            Placed normally.  Direction = direction_preferred or "-Z".
+
+        Phase 2 – shell nozzles (group_nodes[1..N]):
+            Placed at anchor_xy ± shell_radius_voxels in X or Y so the pipe
+            connects flush to the cylindrical shell.  Direction cycles through
+            [+X, -X, +Y, -Y] unless direction_preferred is set.
+        """
+        conflicts: List[Dict[str, object]] = []
+        shell_radius_voxels = math.ceil(
+            config.shell_radius / config.voxel_size
+        )
+
+        # ---- Phase 1: anchor port ----
+        anchor_node = group_nodes[0]
+        anchor_direction = self._resolve_direction_for_group_port(anchor_node, default_dir="-Z")
+        anchor_placed, anchor_conflict = self._place_single_node(
+            node=anchor_node,
+            config=config,
+            topology_seeds=topology_seeds,
+            default_z_layers=default_z_layers,
+            default_clearance=default_clearance,
+            max_search_radius=max_search_radius,
+            occupied=occupied,
+            override_direction=anchor_direction,
+        )
+        placed[anchor_node.node_id] = anchor_placed
+        if anchor_conflict:
+            conflicts.append(anchor_conflict)
+
+        anchor_vc = anchor_placed.vc  # (ax, ay, az)
+        _, _, nz = config.grid_dimensions
+
+        # ---- Phase 2: shell nozzles ----
+        shell_dir_index = 0
+        for shell_node in group_nodes[1:]:
+            # Pick direction: prefer explicit hint, else cycle through radial dirs
+            if (
+                isinstance(shell_node.placement_hint.direction_preferred, str)
+                and shell_node.placement_hint.direction_preferred in {"+X", "-X", "+Y", "-Y", "+Z", "-Z"}
+            ):
+                nozzle_dir = shell_node.placement_hint.direction_preferred
+            else:
+                nozzle_dir = self._SHELL_DIRECTIONS[shell_dir_index % len(self._SHELL_DIRECTIONS)]
+                shell_dir_index += 1
+
+            # Compute shell voxel position from anchor XY + radial offset
+            dx, dy = self._direction_to_xy_delta(nozzle_dir)
+            shell_vc = (
+                anchor_vc[0] + dx * shell_radius_voxels,
+                anchor_vc[1] + dy * shell_radius_voxels,
+                anchor_vc[2],
+            )
+            # Clamp to grid bounds
+            nx, ny, _ = config.grid_dimensions
+            shell_vc = (
+                min(max(shell_vc[0], 0), nx - 1),
+                min(max(shell_vc[1], 0), ny - 1),
+                min(max(shell_vc[2], 0), nz - 1),
+            )
+            wc = self._vc_to_wc(shell_vc, config)
+            shell_placed = PlacedNode(
+                node_id=shell_node.node_id,
+                vc=shell_vc,
+                wc=wc,
+                direction=nozzle_dir,
+            )
+            placed[shell_node.node_id] = shell_placed
+            occupied.update(
+                self._expanded_box_voxels(
+                    shell_vc,
+                    self.DEFAULT_NODE_EXTENT,
+                    default_clearance,
+                    config.grid_dimensions,
+                )
+            )
+
+        return conflicts
+
+    @staticmethod
+    def _resolve_direction_for_group_port(node: NodeSpec, default_dir: str) -> str:
+        """Return direction_preferred if valid, else default_dir."""
+        pref = node.placement_hint.direction_preferred
+        if isinstance(pref, str) and pref in {"+X", "-X", "+Y", "-Y", "+Z", "-Z"}:
+            return pref
+        return default_dir
+
+    @staticmethod
+    def _direction_to_xy_delta(direction: str) -> Tuple[int, int]:
+        """Map a cardinal direction string to (dx, dy) voxel offset."""
+        return {
+            "+X": (1, 0),
+            "-X": (-1, 0),
+            "+Y": (0, 1),
+            "-Y": (0, -1),
+            "+Z": (0, 0),
+            "-Z": (0, 0),
+        }.get(direction, (0, 0))
+
+    @staticmethod
+    def _is_signal_port(node: NodeSpec) -> bool:
+        """Return True if *node* is a signal/instrument-tap port.
+
+        Signal ports must NOT be included in the equipment-group placement
+        pre-pass (Bug 15 fix).  They are placed individually by the main loop
+        and then repositioned by :class:`~router_layer.snapping.shell_snapper.
+        EquipmentPortShellSnapper`.
+        """
+        role = (node.role or "").strip().lower()
+        if role == "signal":
+            return True
+        port_kind = str(node.properties.get("port_kind", "")).strip().lower()
+        if port_kind == "instrument_tap":
+            return True
+        return bool(node.properties.get("snap_to_shell"))
+
     def _place_single_node(
         self,
         node: NodeSpec,
@@ -63,10 +249,11 @@ class SimpleNodePlacer:
         default_clearance: int,
         max_search_radius: int,
         occupied: Set[Vc],
+        override_direction: Optional[str] = None,
     ) -> Tuple[PlacedNode, Optional[Dict[str, object]]]:
         seed_xy_norm, seed_source = self._resolve_seed_xy(node, topology_seeds)
         seed_xy_voxel = self._to_seed_voxel(seed_xy_norm, config.grid_dimensions)
-        direction = self._resolve_direction(node)
+        direction = override_direction if override_direction is not None else self._resolve_direction(node)
 
         _, _, nz = config.grid_dimensions
         candidate_layers = self._candidate_layers(node, default_z_layers, nz)
