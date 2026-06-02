@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -39,8 +40,36 @@ class DefaultRouterService:
         On success:  RouteResult(success=True, output_json=..., failures=[])
         On failure:  RouteResult(success=False, output_json=None,
                                  failures=[...], failure_report=...)
+
+        If ``self.config.placer_clearance_voxels`` or
+        ``self.config.placer_search_radius_voxels`` are set, they override the
+        corresponding values from ``router_input.constraints.spatial_rules``
+        before node placement.  This allows the router-side retry loop to
+        increase node spacing without modifying the VLM output.
         """
         typed_input = self.parser.parse(router_input)
+
+        # Apply config-level placer overrides (used by router-side retry loop).
+        # We deep-copy the constraints so the original router_input dict is
+        # never mutated between retry attempts.
+        if (
+            self.config.placer_clearance_voxels is not None
+            or self.config.placer_search_radius_voxels is not None
+        ):
+            typed_input = copy.copy(typed_input)
+            typed_input.constraints = copy.copy(typed_input.constraints)
+            typed_input.constraints.spatial_rules = copy.copy(
+                typed_input.constraints.spatial_rules
+            )
+            if self.config.placer_clearance_voxels is not None:
+                typed_input.constraints.spatial_rules.default_clearance_voxels = (
+                    self.config.placer_clearance_voxels
+                )
+            if self.config.placer_search_radius_voxels is not None:
+                typed_input.constraints.spatial_rules.max_search_radius_voxels = (
+                    self.config.placer_search_radius_voxels
+                )
+
         placed_nodes = self.node_placer.place_nodes(typed_input, self.config)
         self.shell_snapper.apply(typed_input, placed_nodes, self.config)
 

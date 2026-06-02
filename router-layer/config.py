@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, List, Literal, Tuple
+from typing import TYPE_CHECKING, List, Literal, Optional, Tuple
 
 if TYPE_CHECKING:
     # Avoid a circular import at runtime; RoutingRule only needed for type hints.
@@ -42,4 +42,12 @@ class RouterConfig:
     # Tank geometry — must match GeometryHelper.SHELL_RADIUS so that shell-nozzle
     # placement in SimpleNodePlacer produces flush pipe connections.
     shell_radius: float = 0.3
+
+    # Node-placer overrides for retry attempts.
+    # When set, DefaultRouterService uses these values instead of the values
+    # from router_input.constraints.spatial_rules.  This lets the router-side
+    # retry loop increase spacing without touching the VLM output.
+    # None means "use whatever the router_input says" (default behaviour).
+    placer_clearance_voxels: Optional[int] = None
+    placer_search_radius_voxels: Optional[int] = None
 

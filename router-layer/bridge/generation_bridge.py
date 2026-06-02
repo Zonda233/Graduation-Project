@@ -24,10 +24,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +83,21 @@ def load_router_layer_package(router_layer_dir: Path) -> None:
 # 核心桥接函数
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Router-side retry configs
+# ---------------------------------------------------------------------------
+
+# Each entry is (grid_xy, placer_clearance, placer_search_radius).
+# The first attempt always uses the default RouterConfig (grid 20×20×20,
+# no placer overrides) so that first-attempt behaviour is never changed.
+# Subsequent entries are tried in order when routing fails, without calling
+# the VLM again.  Z dimension is kept at 20 — pipes route mostly in XY.
+_ROUTER_RETRY_STEPS: List[tuple[int, int, int]] = [
+    (30, 2, 6),   # retry 1: 30×30×20 grid, clearance=2, search_radius=6
+    (40, 3, 8),   # retry 2: 40×40×20 grid, clearance=3, search_radius=8
+]
+
+
 def route_to_generation_json(
     repo_root: Path,
     router_input: dict[str, Any],
@@ -94,6 +112,20 @@ def route_to_generation_json(
        需要读取 ``protocol_v1.json`` schema）。
     3. 动态加载 router-layer 包。
     4. 实例化 :class:`DefaultRouterService` 并调用 ``route()``。
+
+    Router-side retry
+    -----------------
+    If the first routing attempt fails, the function automatically retries
+    with progressively larger grids and wider node-placer spacing (defined in
+    ``_ROUTER_RETRY_STEPS``).  These retries do **not** call the VLM — they
+    re-run the router on the same ``router_input`` dict with a different
+    :class:`RouterConfig`.  Only when all router-side retries are exhausted
+    does the function raise ``RuntimeError`` so the VLM retry loop can take
+    over.
+
+    The **first** attempt always uses the default ``RouterConfig``
+    (``grid_dimensions=(20,20,20)``, no placer overrides) so that existing
+    experiments that succeed on the first attempt remain fully reproducible.
 
     Parameters
     ----------
@@ -110,6 +142,8 @@ def route_to_generation_json(
     ------
     FileNotFoundError
         如果 router-layer 目录不存在。
+    RuntimeError
+        如果所有路由侧重试均失败，携带最后一次的 failure_report。
     """
     router_layer_dir = repo_root / "router-layer"
     if not router_layer_dir.is_dir():
@@ -130,21 +164,55 @@ def route_to_generation_json(
     load_router_layer_package(router_layer_dir)
 
     # 延迟导入，确保包已注册后再 import
+    from router_layer.config import RouterConfig                                  # noqa: PLC0415
     from router_layer.emission.schema_emitter import SchemaCompliantJsonEmitter  # noqa: PLC0415
     from router_layer.service.default_service import DefaultRouterService        # noqa: PLC0415
 
+    # Attempt 0: default config (must not change first-attempt behaviour).
     service = DefaultRouterService(json_emitter=SchemaCompliantJsonEmitter())
     result = service.route(router_input)
 
-    if not result.success:
-        # Raise with the full diagnostic so callers (test harness, VLM loop)
-        # can inspect or display it.
-        raise RuntimeError(
-            f"Routing failed for {len(result.failures)} line(s):\n\n"
-            + (result.failure_report or "")
-        )
+    if result.success:
+        return result.output_json
 
-    return result.output_json
+    # Router-side retries with progressively larger grids / wider spacing.
+    last_report: Optional[str] = result.failure_report
+    for step_idx, (grid_xy, clearance, search_radius) in enumerate(_ROUTER_RETRY_STEPS):
+        logger.warning(
+            "Router-side retry %d/%d: grid=%dx%dx20, clearance=%d, search_radius=%d",
+            step_idx + 1,
+            len(_ROUTER_RETRY_STEPS),
+            grid_xy,
+            grid_xy,
+            clearance,
+            search_radius,
+        )
+        retry_config = RouterConfig(
+            grid_dimensions=(grid_xy, grid_xy, 20),
+            placer_clearance_voxels=clearance,
+            placer_search_radius_voxels=search_radius,
+        )
+        retry_service = DefaultRouterService(
+            config=retry_config,
+            json_emitter=SchemaCompliantJsonEmitter(),
+        )
+        retry_result = retry_service.route(router_input)
+        if retry_result.success:
+            logger.info(
+                "Router-side retry %d succeeded (grid=%dx%dx20).",
+                step_idx + 1,
+                grid_xy,
+                grid_xy,
+            )
+            return retry_result.output_json
+        last_report = retry_result.failure_report
+
+    # All router-side retries exhausted — raise so the VLM loop can take over.
+    raise RuntimeError(
+        f"Routing failed for {len(result.failures)} line(s) "
+        f"(tried {1 + len(_ROUTER_RETRY_STEPS)} grid sizes):\n\n"
+        + (last_report or "")
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +297,67 @@ for w in report.warnings:
 for e in report.errors:
     print("  [E]", e)
 print("=" * 60)
+
+# ------------------------------------------------------------
+# Post-processing: floor plane + key light
+# ------------------------------------------------------------
+import bpy, json, math
+
+# Read voxel grid dimensions from the JSON to size the floor
+with open(JSON_FILE, encoding="utf-8") as _f:
+    _meta = json.load(_f).get("meta", {{}})
+_vg   = _meta.get("voxel_grid", {{}})
+_vs   = _vg.get("voxel_size", 0.2)
+_dims = _vg.get("dimensions", [20, 20, 20])
+_orig = _vg.get("origin_wc", [0.0, 0.0, 0.0])
+
+# Scene footprint in world coordinates
+_scene_w = _dims[0] * _vs   # X extent
+_scene_d = _dims[1] * _vs   # Y extent
+_cx = _orig[0] + _scene_w / 2.0
+_cy = _orig[1] + _scene_d / 2.0
+
+# Floor plane — 3× the scene footprint so it extends well beyond the pipes
+_floor_size = max(_scene_w, _scene_d) * 10.0
+
+# Remove any existing floor/light added by a previous run
+for _obj in list(bpy.data.objects):
+    if _obj.name.startswith(("PID_Floor", "PID_KeyLight")):
+        bpy.data.objects.remove(_obj, do_unlink=True)
+
+# Create floor mesh
+bpy.ops.mesh.primitive_plane_add(size=_floor_size, location=(_cx, _cy, _orig[2]))
+_floor = bpy.context.active_object
+_floor.name = "PID_Floor"
+
+# White diffuse material
+_mat = bpy.data.materials.new(name="PID_Floor_Mat")
+_mat.use_nodes = True
+_bsdf = _mat.node_tree.nodes.get("Principled BSDF")
+if _bsdf:
+    _bsdf.inputs["Base Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    _bsdf.inputs["Roughness"].default_value  = 0.8
+_floor.data.materials.append(_mat)
+
+# Key light — area light at 45° diagonal above the scene
+# Position: offset by half the scene size in +X and +Y, elevated to 1.5× scene width
+_lx = _cx + _scene_w * 0.8
+_ly = _cy + _scene_d * 0.8
+_lz = _orig[2] + max(_scene_w, _scene_d) * 1.5
+
+bpy.ops.object.light_add(type="AREA", location=(_lx, _ly, _lz))
+_light = bpy.context.active_object
+_light.name = "PID_KeyLight"
+_light.data.energy = 1000.0
+_light.data.size   = max(_scene_w, _scene_d) * 0.8
+
+# Point the light toward the scene centre at ground level
+import mathutils as _mu
+_dir = _mu.Vector((_cx - _lx, _cy - _ly, _orig[2] - _lz))
+_rot = _dir.to_track_quat("-Z", "Y")
+_light.rotation_euler = _rot.to_euler()
+
+print("Floor and key light added.")
 # ============================================================
 # 以上代码复制到 Blender 4.5 Scripting 编辑器中执行
 # ============================================================

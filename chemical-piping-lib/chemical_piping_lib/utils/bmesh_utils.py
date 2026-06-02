@@ -392,14 +392,65 @@ def make_elbow_sweep(
     The function creates one vertex ring per arc point and bridges
     adjacent rings.  The two end-caps are closed with n-gon faces.
     Normals are recalculated at the end.
+
+    Twist-free sweep (rotation-minimising / Bishop frame)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Each cross-section ring is placed using a **parallel-transported** local
+    frame rather than recomputing ``build_local_frame`` independently for
+    every tangent.  Recomputing independently causes a discontinuous jump in
+    the ``u`` axis whenever the "least-aligned world axis" heuristic inside
+    ``perpendicular_vector`` switches candidates — producing the visual
+    "twist" artifact at one end of the elbow.
+
+    The parallel-transport step rotates the previous frame's ``u`` vector by
+    the minimal rotation that maps ``tangent[i-1]`` onto ``tangent[i]``
+    (Rodrigues' rotation formula).  This keeps the frame as smooth as
+    possible along the arc (zero integrated torsion).
     """
     if segments is None:
         segments = RUNTIME.mesh_segments
 
     rings: list[list[BMVert]] = []
 
-    for centre, tangent in arc:
-        ring = make_circle_verts(bm, centre, tangent, radius, segments)
+    # --- Seed the first frame with build_local_frame (arbitrary but stable). -
+    _first_centre, first_tangent = arc[0]
+    u, _v = build_local_frame(first_tangent)
+
+    for idx, (centre, tangent) in enumerate(arc):
+        if idx == 0:
+            # First ring: use the seed frame directly.
+            current_u = u
+        else:
+            # Parallel-transport: rotate previous u by the minimal rotation
+            # that maps prev_tangent → tangent (Rodrigues).
+            prev_tangent = arc[idx - 1][1]
+            axis = prev_tangent.cross(tangent)
+            axis_len = axis.length
+            if axis_len < 1e-9:
+                # Tangents are (nearly) parallel — no rotation needed.
+                current_u = current_u  # noqa: PLW0127  (self-assignment is intentional)
+            else:
+                axis_norm = axis / axis_len
+                cos_a = max(-1.0, min(1.0, prev_tangent.dot(tangent)))
+                sin_a = axis_len  # |a×b| = |a||b|sin θ, both unit → sin θ
+                # Rodrigues: u' = u cos θ + (axis × u) sin θ + axis (axis·u)(1-cos θ)
+                dot_au = axis_norm.dot(current_u)
+                current_u = (
+                    current_u * cos_a
+                    + axis_norm.cross(current_u) * sin_a
+                    + axis_norm * dot_au * (1.0 - cos_a)
+                )
+                current_u = current_u.normalized()
+
+        # Build the ring using the parallel-transported u as the first
+        # in-plane axis.  v is derived from tangent × u so the frame stays
+        # right-handed and perpendicular to the pipe axis.
+        v_vec = tangent.normalized().cross(current_u).normalized()
+        ring: list[BMVert] = []
+        for i in range(segments):
+            angle = 2.0 * math.pi * i / segments
+            pos = centre + radius * (math.cos(angle) * current_u + math.sin(angle) * v_vec)
+            ring.append(bm.verts.new(pos))
         rings.append(ring)
 
     # Bridge adjacent rings.

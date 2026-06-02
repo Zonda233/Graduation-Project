@@ -306,18 +306,18 @@
         },
         {
           "port_id": "tee_01_run_b",
-          "axis": "+X",
-          "connects_to_comp": "seg_L_process_A_to_B_2_c00"
+          "axis": "-Y",
+          "connects_to_comp": "seg_L_branch_to_custom_c00"
         },
         {
           "port_id": "tee_01_branch",
-          "axis": "-Y",
-          "connects_to_comp": "seg_L_branch_to_custom_c00"
+          "axis": "+Y",
+          "connects_to_comp": ""
         }
       ],
       "spec": {
         "main_diameter": 0.1,
-        "branch_diameter": 0.08,
+        "branch_diameter": 0.1,
         "material_id": "mat_carbon_steel"
       }
     }
@@ -448,7 +448,7 @@
     {
       "id": "seg_L_branch_to_custom",
       "display_name": "PROC-BRANCH-DN80",
-      "from_port": "tee_01_branch",
+      "from_port": "tee_01_run_b",
       "to_port": "port_custom_module_01_in",
       "spec": {
         "nominal_diameter": 0.08,

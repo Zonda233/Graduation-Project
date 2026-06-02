@@ -16,57 +16,34 @@
   },
   "nodes": [
     {
-      "id": "port_tanka_out",
+      "id": "port_tanka_outlet",
       "type": "EquipmentPort",
       "role": "outlet",
       "label": "TankA Outlet",
+      "pid_tag": "TankA",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_tankb_in",
+      "id": "port_tankb_inlet",
       "type": "EquipmentPort",
       "role": "inlet",
       "label": "TankB Inlet",
+      "pid_tag": "TankB",
       "equipment_ref": "TankB"
     },
     {
-      "id": "port_tankc_out",
-      "type": "EquipmentPort",
-      "role": "outlet",
-      "label": "TankC Outlet",
-      "equipment_ref": "TankC"
-    },
-    {
-      "id": "port_tankd_in",
-      "type": "EquipmentPort",
-      "role": "inlet",
-      "label": "TankD Inlet",
-      "equipment_ref": "TankD"
-    },
-    {
-      "id": "junc_a",
+      "id": "junc_main_tee",
       "type": "Junction",
       "role": "branch_point",
-      "label": "Tee A"
+      "label": "Main Tee"
     },
     {
-      "id": "junc_b",
-      "type": "Junction",
-      "role": "branch_point",
-      "label": "Tee B"
-    },
-    {
-      "id": "junc_c",
-      "type": "Junction",
-      "role": "branch_point",
-      "label": "Tee C"
-    },
-    {
-      "id": "port_mod1_in",
+      "id": "port_module_inlet",
       "type": "EquipmentPort",
       "role": "inlet",
-      "label": "Module1 Inlet",
-      "equipment_ref": "Module1",
+      "label": "Module Inlet",
+      "pid_tag": "Module",
+      "equipment_ref": "Module",
       "properties": {
         "asset_type": "custom_module",
         "module_kind": "custom",
@@ -84,87 +61,21 @@
       }
     },
     {
-      "id": "port_mod1_out",
-      "type": "EquipmentPort",
-      "role": "outlet",
-      "label": "Module1 Outlet",
-      "equipment_ref": "Module1",
-      "properties": {
-        "asset_type": "custom_module",
-        "module_kind": "custom",
-        "module_voxel_extent": [
-          3,
-          2,
-          2
-        ],
-        "port_local_wc": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "port_kind": "process"
-      }
-    },
-    {
-      "id": "port_mod2_in",
-      "type": "EquipmentPort",
-      "role": "inlet",
-      "label": "Module2 Inlet",
-      "equipment_ref": "Module2",
-      "properties": {
-        "asset_type": "custom_module",
-        "module_kind": "custom",
-        "module_voxel_extent": [
-          3,
-          2,
-          2
-        ],
-        "port_local_wc": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "port_kind": "process"
-      }
-    },
-    {
-      "id": "port_mod2_out",
-      "type": "EquipmentPort",
-      "role": "outlet",
-      "label": "Module2 Outlet",
-      "equipment_ref": "Module2",
-      "properties": {
-        "asset_type": "custom_module",
-        "module_kind": "custom",
-        "module_voxel_extent": [
-          3,
-          2,
-          2
-        ],
-        "port_local_wc": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "port_kind": "process"
-      }
-    },
-    {
-      "id": "port_tanka_sig",
+      "id": "port_tanka_sig_ti",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "TankA Signal Port",
+      "label": "TankA TI Signal Port",
       "equipment_ref": "TankA"
     },
     {
-      "id": "port_mod2_sig",
+      "id": "port_tanka_sig_pi",
       "type": "EquipmentPort",
       "role": "signal",
-      "label": "Module2 Signal Port",
-      "equipment_ref": "Module2"
+      "label": "TankA PI Signal Port",
+      "equipment_ref": "TankA"
     },
     {
-      "id": "inst_ti101",
+      "id": "inst_ti_101",
       "type": "InlineInstrument",
       "label": "TI-101",
       "properties": {
@@ -172,110 +83,46 @@
       }
     },
     {
-      "id": "inst_pi102",
+      "id": "inst_pi_102",
       "type": "InlineInstrument",
       "label": "PI-102",
       "properties": {
         "instrument_kind": "pressure_gauge"
       }
-    },
-    {
-      "id": "bound_drain_a",
-      "type": "Boundary",
-      "role": "line_end",
-      "label": "Tee A Downstream Drain"
-    },
-    {
-      "id": "bound_drain_b",
-      "type": "Boundary",
-      "role": "line_end",
-      "label": "Tee B Downstream Drain"
-    },
-    {
-      "id": "bound_lower_left",
-      "type": "Boundary",
-      "role": "line_end",
-      "label": "Tee C Left Branch End"
     }
   ],
   "lines": [
     {
-      "id": "L_tanka_to_mod1",
-      "from_node": "port_tanka_out",
-      "to_node": "port_mod1_in",
-      "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": true
-    },
-    {
-      "id": "L_mod1_to_tankb",
-      "from_node": "port_mod1_out",
-      "to_node": "port_tankb_in",
+      "id": "L_main",
+      "from_node": "port_tanka_outlet",
+      "to_node": "port_tankb_inlet",
       "via_nodes": [
-        "junc_a",
-        "junc_b"
+        "junc_main_tee"
       ],
       "service": "Fluid",
       "nominal_diameter_mm": 100,
-      "with_flanges": true,
-      "valve_subtype": "Gate"
+      "with_flanges": false
     },
     {
-      "id": "L_junca_drain",
-      "from_node": "junc_a",
-      "to_node": "bound_drain_a",
+      "id": "L_branch",
+      "from_node": "junc_main_tee",
+      "to_node": "port_module_inlet",
       "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": true
+      "nominal_diameter_mm": 80,
+      "with_flanges": false
     },
     {
-      "id": "L_juncb_drain",
-      "from_node": "junc_b",
-      "to_node": "bound_drain_b",
-      "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": true
-    },
-    {
-      "id": "L_tankc_to_mod2",
-      "from_node": "port_tankc_out",
-      "to_node": "port_mod2_in",
-      "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": true
-    },
-    {
-      "id": "L_mod2_to_tankd",
-      "from_node": "port_mod2_out",
-      "to_node": "port_tankd_in",
-      "via_nodes": [
-        "junc_c"
-      ],
-      "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": true
-    },
-    {
-      "id": "L_juncc_left",
-      "from_node": "junc_c",
-      "to_node": "bound_lower_left",
-      "service": "Fluid",
-      "nominal_diameter_mm": 100,
-      "with_flanges": true,
-      "valve_subtype": "Ball"
-    },
-    {
-      "id": "L_sig_ti101",
-      "from_node": "inst_ti101",
-      "to_node": "port_tanka_sig",
+      "id": "L_sig_ti",
+      "from_node": "port_tanka_sig_ti",
+      "to_node": "inst_ti_101",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false
     },
     {
-      "id": "L_sig_pi102",
-      "from_node": "inst_pi102",
-      "to_node": "port_mod2_sig",
+      "id": "L_sig_pi",
+      "from_node": "port_tanka_sig_pi",
+      "to_node": "inst_pi_102",
       "service": "instrument_signal",
       "nominal_diameter_mm": 6,
       "with_flanges": false
